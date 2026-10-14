@@ -1,0 +1,4 @@
+fastapi
+httpx
+psycopg[binary]>=3,<4
+openpyxl>=3.1,<4

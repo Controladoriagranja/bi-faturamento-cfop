@@ -1,0 +1,6 @@
+__pycache__/
+.dev_deps/
+artifacts/
+*.log
+.env
+.env.*

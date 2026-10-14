@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Faturamento por Vendedor Pai · Granja Brasília</title>
+  <link rel="icon" href="assets/img/favicon-granja.png">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/api.js"></script>
+  <script defer src="assets/js/filters.js"></script>
+  <script defer src="assets/js/dashboard.js"></script>
+</head>
+<body>
+<main class="workspace">
+  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Faturamento por Vendedor Pai</p></div></div>
+  <form id="filters-form" class="filter-card" aria-label="Filtros do relatório">
+    <div class="filter-title"><strong>Período e unidades</strong><span>Selecione o intervalo da consulta</span></div>
+    <div class="filter-fields">
+      <label class="field" for="data-inicio">Data inicial<input type="date" id="data-inicio" required></label>
+      <label class="field" for="data-fim">Data final<input type="date" id="data-fim" required></label>
+      <div class="field"><label id="unidade-label">Unidades</label><div id="filter-unidade" class="checkbox-multiselect" aria-labelledby="unidade-label"></div></div>
+      <button class="primary-button" id="apply" type="submit">Consultar relatório <span aria-hidden="true">→</span></button>
+    </div>
+  </form>
+  <div id="status" class="status" role="status" aria-live="polite">Preparando a consulta…</div>
+  <section class="report-card" aria-labelledby="report-title">
+    <header class="report-header"><h1 id="report-title">Qtde NFs, Produtos e Pesos por NF <span>Ave Nova / Real Alimentos / Ribeirão das Neves</span></h1><div class="period"><span>PERÍODO SELECIONADO</span><strong id="period-label">—</strong></div></header>
+    <p class="scroll-hint">Deslize a tabela para ver os indicadores <span aria-hidden="true">→</span></p>
+    <div class="table-scroll" tabindex="0" aria-label="Tabela do relatório; role horizontalmente em telas pequenas">
+      <table><thead><tr><th scope="col">Vendedor Pai</th><th scope="col">Qtde NFs</th><th scope="col">Qtde Produto por NF</th><th scope="col">Peso por NF</th><th scope="col">Ticket Médio por NF</th></tr></thead>
+        <tbody id="report-body"><tr><td colspan="5" class="empty">Aguardando consulta autenticada.</td></tr></tbody>
+        <tfoot id="report-total"></tfoot>
+      </table>
+    </div>
+    <footer class="report-footer"><span id="updated-label">Dados consultados pela API da Granja Brasília.</span><span id="units-label">Todas as unidades disponíveis</span></footer>
+  </section>
+  <aside class="pending-note"><span aria-hidden="true">ⓘ</span><p><strong>Classificações em definição.</strong> CD Ribeirão das Neves e Januária permanecem zerados até a confirmação de suas regras. “Sem Vínculo” é um grupo cadastrado; “Não classificado” reúne vendedores sem correspondência.</p></aside>
+</main>
+</body></html>
