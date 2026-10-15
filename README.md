@@ -50,7 +50,7 @@ A autenticação interna continua no middleware existente; o Worker continua rec
 - Total recalcula médias sobre todas as NFs, nunca média simples das categorias.
 - Vendedor sem cadastro vira Não classificado e permanece no total.
 - NF com data/vendedor divergente ou chave incompleta interrompe o resumo com 409; não escolhe vendedor arbitrário.
-- CD Ribeirão das Neves e Januária são placeholders zerados; não há inferência por cliente/cidade/unidade. Se um futuro cadastro tentar usar esses nomes antes da definição, as NFs permanecem em Não classificado até a regra ser aprovada.
+- Unidade do documento 180: CD Ribeirão das Neves; unidade 102: Januária. Essa classificação tem prioridade sobre o vendedor pai. Unidades 10 (Ave Nova) e 111 (Real Alimentos) seguem a planilha de vendedor pai.
 - A fonte atual é uma view sobre tabela de cópia de teste, para a semana de setembro. Esta entrega não conecta automaticamente essa cópia ao extrator nem muda sua janela de dados.
 - As diferenças de condição de pagamento/desconto financeiro encontradas entre a planilha e a fonte em etapa anterior não mudam as métricas deste relatório, que usam contagem, produtos, peso e valor_total_faturado.
 - A imagem mencionada na tarefa não foi anexada nesta mensagem. O layout segue o título, cores, colunas, formatos e sequência especificados; não houve homologação visual contra uma imagem ausente.
@@ -60,3 +60,13 @@ A autenticação interna continua no middleware existente; o Worker continua rec
 Consulte docs/VALIDACAO.md e backend/sql/004_validacao.sql. Foram comparados PostgreSQL e a planilha de itens relatorio (3).xlsx agrupada pela auxiliar de vendedores. Não foi fornecida uma planilha pronta com os indicadores por vendedor pai; o relatório deixa essa distinção explícita.
 
 Reexecutar testes exige as dependências de backend/requirements-testes.txt e a cópia do backend atual; os comandos estão em docs/VALIDACAO.md. Não executar robôs ou implantar em produção para testar esta entrega.
+
+
+### Ordena??o das colunas
+
+A tela abre na ordem padr?o do relat?rio. Clique no cabe?alho de qualquer coluna para alternar entre crescente, decrescente e ordem padr?o. O bot?o "Ordem padr?o" tamb?m restaura a ordem inicial. Empates preservam a sequ?ncia original; o Total permanece no rodap?. A ordena??o usa os indicadores recebidos, antes do arredondamento visual, sem refazer c?lculos ou consultas. Ao recarregar a p?gina, volta ? ordem padr?o.
+
+
+### Tema
+
+O bot?o de sol/lua no topo alterna claro e escuro. Usa a chave bi-zootecnico-theme, igual aos relat?rios existentes, com prefer?ncia salva por origem do navegador. Sem prefer?ncia salva, acompanha o sistema.

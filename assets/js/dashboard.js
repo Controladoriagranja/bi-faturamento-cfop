@@ -7,6 +7,44 @@
   };
   let controller = null, sequence = 0;
   let opcoes = {};
+  let grupos = [], ordenacao = null;
+  const sortKeys = ["vendedor_pai", "qtde_nfs", "qtde_produto_por_nf", "peso_por_nf", "ticket_medio_por_nf"];
+  const collator = new Intl.Collator("pt-BR", {sensitivity: "base", numeric: true});
+  const headers = [...document.querySelectorAll("thead th")];
+  const sortButtons = headers.map((th, index) => {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "sort-button";
+    button.dataset.label = th.textContent;
+    button.addEventListener("click", () => {
+      const key = sortKeys[index];
+      ordenacao = ordenacao?.key === key
+        ? (ordenacao.direction === "asc" ? {key, direction: "desc"} : null)
+        : {key, direction: "asc"};
+      updateSorting();
+      if (grupos.length) renderGroups();
+    });
+    th.replaceChildren(button);
+    return button;
+  });
+  const sortTools = document.createElement("div"); sortTools.className = "sort-tools";
+  const sortHint = document.createElement("span"); sortHint.textContent = "Clique nas colunas para ordenar";
+  const resetSort = document.createElement("button"); resetSort.type = "button";
+  resetSort.textContent = "Ordem padrão";
+  resetSort.addEventListener("click", () => {ordenacao = null; updateSorting(); if (grupos.length) renderGroups();});
+  sortTools.append(sortHint, resetSort);
+  document.querySelector(".table-scroll").before(sortTools);
+  function updateSorting() {
+    headers.forEach((th, index) => {
+      const active = ordenacao?.key === sortKeys[index];
+      th.setAttribute("aria-sort", active ? (ordenacao.direction === "asc" ? "ascending" : "descending") : "none");
+      const button = sortButtons[index];
+      button.textContent = button.dataset.label + (active ? (ordenacao.direction === "asc" ? " ↑" : " ↓") : " ↕");
+      button.title = active && ordenacao.direction === "desc" ? "Restaurar ordem padrão" :
+        active ? "Ordenar do maior para o menor" : "Ordenar do menor para o maior";
+    });
+    resetSort.disabled = ordenacao === null;
+  }
+  updateSorting();
   const filters = new FilterController({
     fields: [{id: "filter-unidade", apiKey: "unidade", multi: true, search: true}],
     includeDependentRefresh: false, optionsProvider: async () => opcoes,
@@ -39,12 +77,24 @@
     }
     return tr;
   }
+  function renderGroups() {
+    const ordered = grupos.map((item, index) => ({item, index}));
+    if (ordenacao) ordered.sort((a, b) => {
+      const key = ordenacao.key;
+      const comparison = key === "vendedor_pai"
+        ? collator.compare(a.item[key], b.item[key]) : num(a.item[key]) - num(b.item[key]);
+      return (ordenacao.direction === "asc" ? comparison : -comparison) || a.index - b.index;
+    });
+    const body = document.createDocumentFragment();
+    for (const {item} of ordered) body.append(row(item));
+    $("report-body").replaceChildren(body);
+  }
   function render(payload) {
     if (!Array.isArray(payload.grupos) || !payload.total) throw new Error("Formato de resposta inesperado da API.");
-    const body = document.createDocumentFragment();
-    for (const item of payload.grupos) body.append(row(item));
+    grupos = payload.grupos;
+    renderGroups();
     const total = row(payload.total, true);
-    $("report-body").replaceChildren(body);$("report-total").replaceChildren(total);
+    $("report-total").replaceChildren(total);
     $("period-label").textContent = `${formatDate(payload.periodo?.data_inicio)} a ${formatDate(payload.periodo?.data_fim)}`;
     $("units-label").textContent = payload.unidades?.length ? `Unidades: ${payload.unidades.join(" · ")}` : "Todas as unidades disponíveis";
     const updated = payload.total.atualizado_em;
@@ -52,6 +102,7 @@
     status(num(payload.total.qtde_nfs) === 0 ? "Nenhuma NF encontrada para os filtros selecionados." : "Relatório atualizado.", "success");
   }
   function clearReport() {
+    grupos = [];
     const tr = document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent="Consulta não disponível. Confira a mensagem acima.";tr.append(td);
     $("report-body").replaceChildren(tr);$("report-total").replaceChildren();$("period-label").textContent="—";
   }

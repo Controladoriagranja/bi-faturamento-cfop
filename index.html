@@ -1,11 +1,13 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
+  <script>try{const t=localStorage.getItem("bi-zootecnico-theme");document.documentElement.dataset.theme=(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))?"dark":"light";}catch(_){}</script>
   <title>Faturamento por Vendedor Pai · Granja Brasília</title>
   <link rel="icon" href="assets/img/favicon-granja.png">
   <link rel="stylesheet" href="assets/css/app.css">
+  <script defer src="assets/js/theme.js"></script>
   <script defer src="assets/js/config.js"></script>
   <script defer src="assets/js/api.js"></script>
   <script defer src="assets/js/filters.js"></script>
@@ -13,7 +15,7 @@
 </head>
 <body>
 <main class="workspace">
-  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Faturamento por Vendedor Pai</p></div></div>
+  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Faturamento por Vendedor Pai</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema" title="Alternar tema"><span data-theme-icon aria-hidden="true">?</span></button></div>
   <form id="filters-form" class="filter-card" aria-label="Filtros do relatório">
     <div class="filter-title"><strong>Período e unidades</strong><span>Selecione o intervalo da consulta</span></div>
     <div class="filter-fields">
@@ -25,7 +27,7 @@
   </form>
   <div id="status" class="status" role="status" aria-live="polite">Preparando a consulta…</div>
   <section class="report-card" aria-labelledby="report-title">
-    <header class="report-header"><h1 id="report-title">Qtde NFs, Produtos e Pesos por NF <span>Ave Nova / Real Alimentos / Ribeirão das Neves</span></h1><div class="period"><span>PERÍODO SELECIONADO</span><strong id="period-label">—</strong></div></header>
+    <header class="report-header"><h1 id="report-title">Qtde NFs, Produtos e Pesos por NF <span>Ave Nova / Real Alimentos / Ribeirão das Neves / Januária</span></h1><div class="period"><span>PERÍODO SELECIONADO</span><strong id="period-label">—</strong></div></header>
     <p class="scroll-hint">Deslize a tabela para ver os indicadores <span aria-hidden="true">→</span></p>
     <div class="table-scroll" tabindex="0" aria-label="Tabela do relatório; role horizontalmente em telas pequenas">
       <table><thead><tr><th scope="col">Vendedor Pai</th><th scope="col">Qtde NFs</th><th scope="col">Qtde Produto por NF</th><th scope="col">Peso por NF</th><th scope="col">Ticket Médio por NF</th></tr></thead>
@@ -35,6 +37,6 @@
     </div>
     <footer class="report-footer"><span id="updated-label">Dados consultados pela API da Granja Brasília.</span><span id="units-label">Todas as unidades disponíveis</span></footer>
   </section>
-  <aside class="pending-note"><span aria-hidden="true">ⓘ</span><p><strong>Classificações em definição.</strong> CD Ribeirão das Neves e Januária permanecem zerados até a confirmação de suas regras. “Sem Vínculo” é um grupo cadastrado; “Não classificado” reúne vendedores sem correspondência.</p></aside>
+  <aside class="pending-note"><span aria-hidden="true">ⓘ</span><p><strong>Classificação por unidade da nota.</strong> 180: CD Ribeirão das Neves · 102: Januária. Nas unidades 10 (Ave Nova) e 111 (Real Alimentos), o agrupamento segue o vendedor pai. “Não classificado” reúne vendedores sem correspondência.</p></aside>
 </main>
 </body></html>
