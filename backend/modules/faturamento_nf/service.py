@@ -4,8 +4,8 @@ from decimal import Decimal
 from fastapi import HTTPException
 from .config import CONFIG,GROUP_ORDER,PENDING_GROUPS
 
-def filtros_request(request):
-    permitidos={'data_inicio','data_fim','unidade'}
+def filtros_request(request, extras=()):
+    permitidos={'data_inicio','data_fim','unidade',*extras}
     if set(request.query_params)-permitidos:raise HTTPException(422,'Filtro não configurado.')
     datas=[]
     for key in ('data_inicio','data_fim'):
@@ -68,7 +68,10 @@ class FaturamentoNFService:
     def __init__(self,context):self.context=context
     def execute(self,operation,request):
         from psycopg import sql
-        if operation not in ('filtros','resumo'):raise HTTPException(404,'Detalhes não são necessários para este relatório.')
+        if operation == 'detalhes':
+            from .details import detalhes
+            return detalhes(self.context, request)
+        if operation not in ('filtros','resumo'):raise HTTPException(404,'Operação não disponível.')
         where,params,datas,unidades=filtros_request(request)
         source=sql.Identifier(CONFIG['bi']['schema'],CONFIG['bi']['table'])
         with self.context.banco() as conn:

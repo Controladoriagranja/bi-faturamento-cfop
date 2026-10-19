@@ -8,6 +8,7 @@
   let controller = null, sequence = 0;
   let opcoes = {};
   let grupos = [], ordenacao = null;
+  let filtrosExibidos = null;
   const sortKeys = ["vendedor_pai", "qtde_nfs", "qtde_produto_por_nf", "peso_por_nf", "ticket_medio_por_nf"];
   const collator = new Intl.Collator("pt-BR", {sensitivity: "base", numeric: true});
   const headers = [...document.querySelectorAll("thead th")];
@@ -75,6 +76,18 @@
     for (const [key,format] of [["qtde_nfs","inteiro"],["qtde_produto_por_nf","media"],["peso_por_nf","inteiro"],["ticket_medio_por_nf","media"]]) {
       const td=document.createElement("td");td.textContent=formats[format].format(num(item[key]));tr.append(td);
     }
+    [...tr.children].forEach((cell, index) => {
+      const button = document.createElement("button");
+      button.type = "button"; button.className = "detail-link";
+      button.title = `Ver detalhes de ${total ? "todas as notas" : item.vendedor_pai}`;
+      button.append(...cell.childNodes); cell.append(button);
+      button.addEventListener("click", () => {
+        if (filtrosExibidos) FaturamentoDetails.open({
+          filtros: filtrosExibidos, grupo: total ? null : item.vendedor_pai,
+          indicador: sortKeys[index], visao: index === 0 ? "itens" : "notas"
+        });
+      });
+    });
     return tr;
   }
   function renderGroups() {
@@ -102,6 +115,7 @@
     status(num(payload.total.qtde_nfs) === 0 ? "Nenhuma NF encontrada para os filtros selecionados." : "Relatório atualizado.", "success");
   }
   function clearReport() {
+    filtrosExibidos = null;
     grupos = [];
     const tr = document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent="Consulta não disponível. Confira a mensagem acima.";tr.append(td);
     $("report-body").replaceChildren(tr);$("report-total").replaceChildren();$("period-label").textContent="—";
@@ -110,11 +124,14 @@
     const inicio = $("data-inicio").value, fim = $("data-fim").value;
     if (!inicio || !fim || inicio > fim) {status("Informe um período válido, com a data inicial anterior ou igual à final.", "error");return;}
     controller?.abort();controller=new AbortController();const own=++sequence;
+    FaturamentoDetails.close();
+    const parametros = {data_inicio:inicio,data_fim:fim,...filters.values()};
     filters.closeAll();$("report-body").closest("section").setAttribute("aria-busy", "true");
     status("Consultando notas fiscais e indicadores…");
     try {
-      const result=await apiGet(APP_CONFIG.endpoints.resumo,{data_inicio:inicio,data_fim:fim,...filters.values()},{signal:controller.signal});
+      const result=await apiGet(APP_CONFIG.endpoints.resumo,parametros,{signal:controller.signal});
       if (own!==sequence)return;
+      filtrosExibidos = structuredClone(parametros);
       render(result);
     } catch(error) {
       if (error.name==="AbortError" || own!==sequence)return;

@@ -36,12 +36,13 @@ Copiar somente backend/modules/faturamento_nf para modules/faturamento_nf do bac
 
 - GET /api/bi/faturamento-nf/filtros
 - GET /api/bi/faturamento-nf/resumo
+- GET /api/bi/faturamento-nf/detalhes
 
 Filtros: data_inicio/data_fim (AAAA-MM-DD), unidade repetida para multisseleção. OR entre unidades; AND com datas. Data final inclusiva via limite exclusivo do dia seguinte. Todas as consultas são parametrizadas; agregações ocorrem no PostgreSQL. O usuário vê as médias prontas; o JavaScript só formata.
 
-O endpoint genérico detalhes existe no padrão, mas retorna 404 para este módulo porque a tabela resumida não precisa dele. Não cria app, autenticação, porta, Tunnel ou container novo. O módulo usa context.banco, com a política somente leitura existente. Não altera os arquivos de Matrizes, registry, bootstrap, router ou serviço principal.
+O endpoint genérico detalhes atende este módulo com paginação e as visões por NF e por item. Não cria app, autenticação, porta, Tunnel ou container novo. O módulo usa context.banco, com a política somente leitura existente. Não altera os arquivos de Matrizes, registry, bootstrap, router ou serviço principal.
 
-A autenticação interna continua no middleware existente; o Worker continua recebendo Bearer da CENTRAL e encaminhando autenticação interna. Verificar se o Worker já encaminha /api/bi/* e permite esse BI no cadastro de permissões. Se usa allowlist, acrescentar essas duas rotas conforme a implantação aprovada. Nenhum código/secrets de Worker foi fornecido, alterado ou publicado.
+A autenticação interna continua no middleware existente; o Worker continua recebendo Bearer da CENTRAL e encaminhando autenticação interna. Verificar se o Worker já encaminha /api/bi/* e permite esse BI no cadastro de permissões. Se usa allowlist, incluir filtros, resumo e detalhes conforme a implantação aprovada. Nenhum código/secrets de Worker foi fornecido, alterado ou publicado.
 
 ## Regras e pendências
 
@@ -56,6 +57,8 @@ A autenticação interna continua no middleware existente; o Worker continua rec
 - A imagem mencionada na tarefa não foi anexada nesta mensagem. O layout segue o título, cores, colunas, formatos e sequência especificados; não houve homologação visual contra uma imagem ausente.
 
 ## Validação
+
+O detalhamento por clique e seus testes locais estão documentados em [docs/DETALHAMENTO.md](docs/DETALHAMENTO.md). A funcionalidade está implementada localmente; publicação e homologação no Portal continuam pendentes.
 
 Consulte docs/VALIDACAO.md e backend/sql/004_validacao.sql. Foram comparados PostgreSQL e a planilha de itens relatorio (3).xlsx agrupada pela auxiliar de vendedores. Não foi fornecida uma planilha pronta com os indicadores por vendedor pai; o relatório deixa essa distinção explícita.
 

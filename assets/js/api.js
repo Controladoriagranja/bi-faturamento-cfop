@@ -93,6 +93,9 @@ async function apiGet(endpoint, params = {}, options = {}) {
         }
 
         if (response.status === 404) {
+            if (normalizedEndpoint.endsWith("/detalhes")) {
+                throw new Error("O detalhamento ainda não está disponível nessa API. Atualize o módulo de Faturamento no backend e confira a rota de detalhes no Worker.");
+            }
             throw new Error("O módulo de Faturamento ainda não está disponível nessa API. Confira a implantação das rotas pelo Portal BI.");
         }
 
