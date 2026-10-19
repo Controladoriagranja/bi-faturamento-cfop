@@ -39,6 +39,7 @@ const FaturamentoDetails = (() => {
         <div class="details-tabs" role="group" aria-label="Visão dos detalhes"><button type="button" data-view="notas">Por nota fiscal</button><button type="button" data-view="itens">Itens da view</button></div>
         <form id="details-search"><label for="details-query">Buscar notas por cliente, vendedor, produto, CFOP ou número</label><div><input id="details-query" type="search" maxlength="200" placeholder="Buscar nas notas do filtro"><button>Buscar</button></div></form>
         <button type="button" id="details-export">Exportar CSV</button>
+        <button type="button" id="details-reset-sort" disabled>Ordem padrão</button>
       </div>
       <p class="details-search-note">A busca seleciona notas completas e mantém todos os seus itens.</p>
       <div class="details-note" id="details-note" hidden><span></span><button type="button" id="details-all">Ver todas as notas do grupo</button></div>
@@ -54,14 +55,17 @@ const FaturamentoDetails = (() => {
   const selected = {notas:new Set(defaults.notas), itens:new Set(defaults.itens)};
   function message(text, error = false) {$("status").textContent = text; $("status").classList.toggle("error",error);}
   function params(page = state.pagina, size = state.por_pagina) {
+    const sort = state.ordenacoes[state.visao];
     return {...state.filtros, vendedor_pai:state.grupo, visao:state.visao, indicador:state.indicador,
-      busca:state.busca, chave_nf:state.chave, pagina:page, por_pagina:size};
+      busca:state.busca, chave_nf:state.chave, pagina:page, por_pagina:size,
+      ordenar_por:sort?.coluna, ordem:sort?.ordem};
   }
   function date(value) {return value ? value.split("-").reverse().join("/") : "—";}
   function updateContext() {
     $("title").textContent = state.grupo || "Todas as notas";
     $("context").textContent = `${metricLabels[state.indicador]} · ${date(state.filtros.data_inicio)} a ${date(state.filtros.data_fim)} · ${state.filtros.unidade?.length ? "Unidades: " + state.filtros.unidade.join(", ") : "Todas as unidades"}`;
     dialog.querySelectorAll("[data-view]").forEach(button => button.setAttribute("aria-pressed",String(button.dataset.view === state.visao)));
+    $("reset-sort").disabled = !state.ordenacoes[state.visao];
     $("note").hidden = !state.chave;
     if (state.chave) $("note").querySelector("span").textContent = `Itens da NF ${JSON.parse(state.chave)[2]} · `;
   }
@@ -76,7 +80,19 @@ const FaturamentoDetails = (() => {
   function renderTable() {
     const columns = visibleColumns();
     const head = document.createElement("tr");
-    for (const column of columns) {const th = document.createElement("th");th.scope="col";th.textContent=labels[column] || column;head.append(th);}
+    for (const column of columns) {
+      const th = document.createElement("th"), button = document.createElement("button");
+      const sort=state.ordenacoes[state.visao], active=sort?.coluna===column;
+      th.scope="col";th.setAttribute("aria-sort",active ? (sort.ordem==="asc" ? "ascending" : "descending") : "none");
+      button.type="button";button.className="details-sort";button.dataset.column=column;
+      button.textContent=(labels[column] || column)+(active ? (sort.ordem==="asc" ? " ↑" : " ↓") : " ↕");
+      button.title=active && sort.ordem==="desc" ? "Restaurar ordem padrão" : active ? "Ordenar decrescente em todas as páginas" : "Ordenar crescente em todas as páginas";
+      button.addEventListener("click",()=>{
+        state.ordenacoes[state.visao]=!active ? {coluna:column,ordem:"asc"} : sort.ordem==="asc" ? {coluna:column,ordem:"desc"} : null;
+        state.pagina=1;load(column);
+      });
+      th.append(button);head.append(th);
+    }
     if (state.visao === "notas") {const th=document.createElement("th");th.textContent="Detalhar";head.append(th);}
     $("head").replaceChildren(head);
     const body = document.createDocumentFragment();
@@ -116,7 +132,7 @@ const FaturamentoDetails = (() => {
     $("page").textContent=loaded ? `Página ${state.pagina} de ${integer.format(pages)} · ${integer.format(payload.total_registros)} registros` : "";
   }
   function cancelExport() {exportController?.abort();exporting=false;$("export").textContent="Exportar CSV";}
-  async function load() {
+  async function load(focusColumn = null) {
     controller?.abort();cancelExport();controller=new AbortController();const own=++generation;
     loaded=false;pagination();updateContext();message("Carregando detalhes…");$("body").replaceChildren();$("head").replaceChildren();$("totals").textContent="";$("columns").replaceChildren();
     dialog.setAttribute("aria-busy","true");
@@ -128,6 +144,7 @@ const FaturamentoDetails = (() => {
       const pages=Math.max(1,Math.ceil(payload.total_registros/state.por_pagina));
       if(state.pagina>pages){state.pagina=pages;return load();}
       renderColumns();renderTable();loaded=true;pagination();
+      if(focusColumn) [...$("head").querySelectorAll("button")].find(b=>b.dataset.column===focusColumn)?.focus({preventScroll:true});
       const totals=payload.totais;
       $("totals").textContent=`${integer.format(totals.qtde_nfs)} NFs · ${integer.format(totals.qtde_itens)} itens · Peso: ${decimal.format(Number(totals.peso_total))} · Faturamento: R$ ${decimal.format(Number(totals.valor_total))}`;
       message(payload.total_registros ? "Detalhes carregados. A exportação inclui todas as páginas e as colunas selecionadas." : "Nenhum registro encontrado.");
@@ -175,8 +192,9 @@ const FaturamentoDetails = (() => {
   $("next").addEventListener("click",()=>{state.pagina++;load();});
   $("size").addEventListener("change",()=>{state.por_pagina=Number($("size").value);state.pagina=1;load();});
   $("export").addEventListener("click",exportCsv);
+  $("reset-sort").addEventListener("click",()=>{state.ordenacoes[state.visao]=null;state.pagina=1;load();});
   return {close, open(options) {
-    state={...options,filtros:structuredClone(options.filtros),pagina:1,por_pagina:50,busca:"",chave:null};
+    state={...options,filtros:structuredClone(options.filtros),pagina:1,por_pagina:50,busca:"",chave:null,ordenacoes:{notas:null,itens:null}};
     $("query").value="";$("size").value="50";dialog.querySelector(".details-columns").open=false;
     if(!dialog.open)dialog.showModal();load();
   }};

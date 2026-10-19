@@ -6,7 +6,7 @@ const root=path.resolve(__dirname,'..');
 const artifacts=path.join(root,'artifacts');fs.mkdirSync(artifacts,{recursive:true});
 (async()=>{
   const socket=net.createServer();await new Promise(r=>socket.listen(0,'127.0.0.1',r));const port=socket.address().port;await new Promise(r=>socket.close(r));
-  const server=spawn(process.env.PYTHON_EXECUTABLE || 'python',[path.join(__dirname,'validar_detalhes.py'),'--serve',String(port)],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe']});
+  const server=spawn(process.env.PYTHON_EXECUTABLE || 'python',[process.env.DETAILS_TEST_SERVER || path.join(__dirname,'validar_detalhes.py'),'--serve',String(port)],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe']});
   let logs='';server.stdout.on('data',b=>logs+=b);server.stderr.on('data',b=>logs+=b);server.on('error',e=>logs+=e.message);
   let browser;
   try {
@@ -46,12 +46,24 @@ const artifacts=path.join(root,'artifacts');fs.mkdirSync(artifacts,{recursive:tr
     await page.locator('#details-columns label').filter({hasText:/^ID$/}).locator('input').check();
     assert.ok((await page.locator('#details-head').textContent()).includes('ID'));
     await page.locator('.details-columns summary').click();
+    await page.locator('#details-head button[data-column="id"]').click();await wait();
+    assert.equal(requests.at(-1).get('ordenar_por'),'id');assert.equal(requests.at(-1).get('ordem'),'asc');
+    assert.equal(await page.locator('#details-head button[data-column="id"]').locator('..').getAttribute('aria-sort'),'ascending');
+    await page.locator('#details-next').click();await wait();assert.equal(requests.at(-1).get('ordenar_por'),'id');
+    await page.locator('#details-head button[data-column="id"]').click();await wait();
+    assert.equal(requests.at(-1).get('ordem'),'desc');assert.equal(requests.at(-1).get('pagina'),'1');
+    assert.ok((await page.locator('#details-body tr').first().textContent()).includes('624.00'));
     await page.screenshot({path:path.join(artifacts,'details-desktop.png')});
     // Exporta todas as páginas, e não só as 50 linhas visíveis.
     const downloadPromise=page.waitForEvent('download');await page.locator('#details-export').click();const download=await downloadPromise;
     const downloaded=path.join(artifacts,'details-export.csv');await download.saveAs(downloaded);
     const csv=fs.readFileSync(downloaded,'utf8');assert.equal(csv.trim().split(/\r?\n/).length,625);
     assert.ok(csv.includes('"ID"'));
+    assert.equal(requests.at(-1).get('ordem'),'desc');
+    await page.locator('#details-head button[data-column="id"]').click();await wait();
+    assert.equal(requests.at(-1).get('ordenar_por'),null);assert.ok(await page.locator('#details-reset-sort').isDisabled());
+    await page.locator('#details-head button[data-column="peso"]').click();await wait();
+    await page.locator('#details-reset-sort').click();await wait();assert.equal(requests.at(-1).get('ordenar_por'),null);
     await page.locator('#details-close').click();assert.equal(await page.locator('dialog[open]').count(),0);
     // Cada indicador abre a visão correspondente; notas permitem expandir os itens.
     for(let index=0;index<4;index++) {

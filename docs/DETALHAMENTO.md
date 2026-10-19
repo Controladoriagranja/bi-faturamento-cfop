@@ -19,10 +19,23 @@ A busca por número da nota, série, cliente, razão social, nome fantasia, vend
 | `pagina`, `por_pagina` | Página a partir de 1; padrão 50, máximo 500 registros |
 | `busca` | Até 200 caracteres, busca literal sem diferenciação de maiúsculas |
 | `chave_nf` | Array JSON de unidade, série e número, recebido da nota; combinado com os demais filtros |
+| `ordenar_por`, `ordem` | Coluna da visão atual e `asc`/`desc`; ausentes restauram a ordem padrão |
 
 A resposta contém `linhas`, `colunas`, `total_registros`, `pagina`, `por_pagina`, `visao`, `totais`, `vendedor_pai`, `periodo` e `unidades`. `totais` descreve todas as notas selecionadas, inclusive quando a página mostra itens.
 
 O backend seleciona as NFs em `comercial.vw_nf_por_vendedor_pai` e associa os itens de `comercial.vw_faturamento_cfop_filtrado` por unidade + série + número, normalizando espaços como na view de notas. Não replica a classificação no JavaScript. Valores e filtros usam parâmetros SQL; as opções de ordenação são fixas. Notas divergentes impedem a consulta com 409, como no resumo.
+
+## Correção do detalhamento do grupo e ordenação — 19/10/2026
+
+A estrutura de produção foi conferida pelo usuário: `qtde_itens` e as demais colunas esperadas existem. O usuário relatou sucesso para uma NF e para 01–04/10, mas falha no grupo com períodos maiores. Isso sugere custo da consulta; o SQLSTATE/tempo do erro original não foi obtido para confirmar timeout.
+
+A nova implementação materializa somente as notas selecionadas e calcula totais e página numa única instrução SQL, evitando executar duas vezes a agregação da view de NFs. Na ordem padrão dos itens, usa a soma acumulada de `qtde_itens` para selecionar primeiro as notas que contêm a página desejada, incluindo páginas que começam ou terminam no meio de uma nota. Somente essas notas entram no JOIN da página com a view de itens. O filtro de datas também é aplicado à fonte dos itens, preservando datas NULL dentro de notas válidas. Não há alteração das views nem aumento do timeout.
+
+Todas as colunas das duas visões permitem crescente → decrescente → padrão. O servidor ordena os dados antes da paginação; a exportação segue a mesma ordem. A ordenação por uma coluna do item precisa considerar todos os itens filtrados, portanto utiliza o caminho global em lugar da seleção prévia das notas da página. Colunas vêm de uma lista permitida e são escapadas como identificadores; a direção aceita somente `asc`/`desc`.
+
+O detalhe agora registra exceções PostgreSQL no log da API com SQLSTATE. Cancelamento pelo banco (57014) recebe HTTP 504 com mensagem específica. Outros erros continuam no tratamento existente. O limite de 15 segundos configurado na API permanece.
+
+Validação adicional: 27 páginas sem repetição/perda de itens, uma instrução SQL por consulta, período amplo com dados sintéticos, ordenação de todas as 60 colunas de itens e 12 colunas de notas, ordem numérica, decimais exatos, data NULL, parâmetros inválidos, ciclo de ordenação no navegador e exportação ordenada. A sintaxe de 66 variantes foi conferida com o parser PostgreSQL (pglast). A suíte também passou na estrutura `bi_generic/faturamento_nf` com as dependências da API enviada. Isso não mede o plano nem o tempo do PostgreSQL real; a consulta ampla ainda precisa ser homologada após a troca.
 
 ## Publicação pendente
 

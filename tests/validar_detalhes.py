@@ -57,6 +57,7 @@ def fixture():
             NULL::VARCHAR AS carregado_em,FALSE AS divergencia_nf
         FROM comercial.vw_faturamento_cfop_filtrado GROUP BY ALL''')
     lock = threading.Lock()
+    queries = []
 
     class Result:
         def __init__(self, cursor):
@@ -68,6 +69,9 @@ def fixture():
     class Adapter:
         def execute(self, query, params=None):
             text = query.as_string() if hasattr(query, 'as_string') else query
+            queries.append(text)
+            # Equivalente DuckDB do agregado JSON PostgreSQL usado pela API.
+            text = text.replace('json_agg(p ORDER BY p._ord)', 'to_json(list(p ORDER BY p._ord))')
             return Result(conn.execute(text.replace('%s','?'), params or []))
 
     @contextmanager
@@ -79,6 +83,7 @@ def fixture():
     context.banco = banco
     service = build_service(context)
     app = FastAPI()
+    app.state.sql_queries = queries
 
     @app.get('/api/bi/faturamento-nf/{operation}')
     def endpoint(operation: str, request: Request):
@@ -138,9 +143,34 @@ def main():
     assert get(vendedor_pai="x' OR 1=1 --")['total_registros']==0
     assert get(busca="%' OR 1=1 --")['total_registros']==0
     assert get(busca='%')['total_registros']==0
+    before=len(app.state.sql_queries)
+    broad=get(visao='itens',data_inicio='2026-01-01',data_fim='2026-10-19',por_pagina=25)
+    assert len(app.state.sql_queries)==before+1
+    assert 'notas_pagina AS MATERIALIZED' in app.state.sql_queries[-1]
+    expected=[r[0] for r in conn.execute('''SELECT id FROM comercial.vw_faturamento_cfop_filtrado
+        ORDER BY data DESC NULLS LAST,trim(unidade_documento),trim(serie),trim(nota_numero),id''').fetchall()]
+    all_ids=[]
+    for page in range(1,28):
+        result=get(visao='itens',por_pagina=25,pagina=page)
+        all_ids.extend(Decimal(row['id']) for row in result['linhas'])
+    assert all_ids==expected  # inclui páginas começando/terminando dentro de uma NF
+    for view, columns in [('itens',ITEM_COLUMNS),('notas',notes['colunas'])]:
+        for column in columns:
+            get(visao=view,ordenar_por=column,ordem='asc',por_pagina=1)
+    assert [Decimal(r['id']) for r in get(visao='itens',ordenar_por='id',ordem='asc',por_pagina=25,pagina=2)['linhas']]==list(range(26,51))
+    assert Decimal(get(visao='itens',ordenar_por='id',ordem='desc')['linhas'][0]['id'])==672
+    assert Decimal(get(visao='itens',ordenar_por='id',ordem='asc')['linhas'][0]['id'])==1
+    conn.execute('UPDATE comercial.vw_faturamento_cfop_filtrado SET peso=10.25,valor_total_faturado=123456789.12 WHERE id=1')
+    conn.execute('UPDATE comercial.vw_faturamento_cfop_filtrado SET data=NULL WHERE id=2')
+    highest=get(visao='itens',ordenar_por='peso',ordem='desc')['linhas'][0]
+    assert Decimal(highest['id'])==1 and highest['valor_total_faturado']=='123456789.12'
+    assert get(visao='itens')['total_registros']==672
+    assert len(get(visao='itens',busca='especial')['linhas'])==12  # data NULL não perde item
     for invalid in ({'visao':'sql'},{'indicador':'sql'},{'pagina':'0'},{'pagina':'abc'},
                     {'por_pagina':501},{'chave_nf':'[1,2,3]'},{'chave_nf':'{}'},
-                    {'busca':'a'*201},{'sql':'select'},{'data_inicio':'2026-11-01'}):
+                    {'busca':'a'*201},{'sql':'select'},{'data_inicio':'2026-11-01'},
+                    {'ordenar_por':'id; DROP TABLE x'}, {'ordem':'desc; SELECT 1'},
+                    {'visao':'notas','ordenar_por':'produto'}):
         assert client.get(base+'detalhes',params={**filters,**invalid}).status_code==422
     assert client.get(base+'detalhes',params=[('visao','notas'),('visao','itens')]).status_code==422
     conn.execute('ALTER VIEW comercial.vw_nf_por_vendedor_pai RENAME TO nf_sem_bloqueio')
