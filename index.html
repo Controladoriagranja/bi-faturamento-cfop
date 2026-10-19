@@ -7,16 +7,20 @@
   <title>Faturamento por Vendedor Pai · Granja Brasília</title>
   <link rel="icon" href="assets/img/favicon-granja.png">
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/navigation.css">
   <script defer src="assets/js/theme.js"></script>
   <script defer src="assets/js/config.js"></script>
   <script defer src="assets/js/api.js"></script>
   <script defer src="assets/js/filters.js"></script>
+  <script defer src="assets/js/report-state.js"></script>
+  <script defer src="assets/js/navigation.js"></script>
   <script defer src="assets/js/details.js"></script>
   <script defer src="assets/js/dashboard.js"></script>
 </head>
-<body>
+<body data-page="faturamento">
 <main class="workspace">
-  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Faturamento por Vendedor Pai</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema" title="Alternar tema"><span data-theme-icon aria-hidden="true">?</span></button></div>
+  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p id="page-caption">Faturamento por Vendedor Pai</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema" title="Alternar tema"><span data-theme-icon aria-hidden="true">?</span></button></div>
+  <section id="view-faturamento" aria-label="Faturamento por Vendedor Pai">
   <form id="filters-form" class="filter-card" aria-label="Filtros do relatório">
     <div class="filter-title"><strong>Período e unidades</strong><span>Selecione o intervalo da consulta</span></div>
     <div class="filter-fields">
@@ -39,5 +43,7 @@
     <footer class="report-footer"><span id="updated-label">Dados consultados pela API da Granja Brasília.</span><span id="units-label">Todas as unidades disponíveis</span></footer>
   </section>
   <aside class="pending-note"><span aria-hidden="true">ⓘ</span><p><strong>Classificação por unidade da nota.</strong> 180: CD Ribeirão das Neves · 102: Januária. Nas unidades 10 (Ave Nova) e 111 (Real Alimentos), o agrupamento segue o vendedor pai. “Não classificado” reúne vendedores sem correspondência.</p></aside>
+  </section>
+
 </main>
 </body></html>

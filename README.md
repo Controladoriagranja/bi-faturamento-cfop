@@ -2,6 +2,14 @@
 
 Projeto independente em HTML/CSS/JavaScript. Reutiliza o cliente HTTP, token da CENTRAL, multisseleção e identidade visual da referência Bi-Matrizes. Não altera esse projeto nem importa suas regras de negócio. Não foi publicado.
 
+## Comparativo PM FOB integrado
+
+O frontend oficial tem duas páginas no mesmo projeto: [index.html](index.html), exclusivamente para Faturamento por Vendedor Pai, e [comparativo-fob.html](comparativo-fob.html), para o Comparativo PM FOB. Compartilham menu, tema, filtros e componentes visuais; os filtros de cada relatório são preservados separadamente ao retornar. O endereço antigo `#comparativo-fob` redireciona para o HTML próprio.
+
+A entrega do backend continua separada e não foi alterada pela reorganização: `artifacts/api_anderson_comparativo_fob.zip`. Instalação no Anderson, arquivos alterados, regras, testes e pendências: [docs/COMPARATIVO_FOB_ENTREGA.md](docs/COMPARATIVO_FOB_ENTREGA.md).
+
+O FOB não exige executar os SQLs de implantação do relatório antigo descritos abaixo. Usa as fontes já existentes, sem criar ou alterar banco. Nesta etapa o período comprovado é 01–04/10/2026 e os fretes sem confirmação permanecem pendentes.
+
 ## Abrir o frontend
 
 Sirva esta pasta com um servidor estático, por exemplo `python -m http.server 8000 --bind 127.0.0.1`, e abra http://127.0.0.1:8000. Abrir como file:// não é o fluxo recomendado.
@@ -73,3 +81,4 @@ A tela abre na ordem padr?o do relat?rio. Clique no cabe?alho de qualquer coluna
 ### Tema
 
 O bot?o de sol/lua no topo alterna claro e escuro. Usa a chave bi-zootecnico-theme, igual aos relatorios existentes, com preferencia salva por origem do navegador. Sem preferencia salva, acompanha o sistema.
+

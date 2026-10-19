@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>try{const t=localStorage.getItem("bi-zootecnico-theme");document.documentElement.dataset.theme=(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))?"dark":"light";}catch(_){}</script>
+  <title>Comparativo PM FOB · Granja Brasília</title>
+  <link rel="icon" href="assets/img/favicon-granja.png">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/navigation.css">
+  <link rel="stylesheet" href="assets/css/fob.css">
+  <script defer src="assets/js/theme.js"></script>
+  <script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/api.js"></script>
+  <script defer src="assets/js/filters.js"></script>
+  <script defer src="assets/js/report-state.js"></script>
+  <script defer src="assets/js/navigation.js"></script>
+  <script defer src="assets/js/fob.js"></script>
+</head>
+<body data-page="comparativo-fob">
+<main class="workspace">
+  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p id="page-caption">Comparativo PM FOB</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema" title="Alternar tema"><span data-theme-icon aria-hidden="true">?</span></button></div>
+  <section id="view-comparativo-fob" aria-labelledby="fob-title">
+    <header class="fob-intro"><div><span class="eyebrow">PREÇO MÉDIO FOB</span><h1 id="fob-title">Comparativo Família × Canal Venda</h1><p>Compare o preço líquido de despesas e investigue a formação do FOB por item.</p></div><span class="fob-reference-tag">Referência de 01 a 04/10/2026</span></header>
+    <form id="fob-filters" class="filter-card" aria-label="Filtros do Comparativo FOB">
+      <div class="filter-title"><strong>Período e composição</strong><span>As médias e despesas são ponderadas pelo peso.</span></div>
+      <div class="fob-filter-fields">
+        <label class="field">Data inicial<input id="fob-inicio" type="date" value="2026-10-01" required></label>
+        <label class="field">Data final<input id="fob-fim" type="date" value="2026-10-04" required></label>
+        <div class="field"><label id="fob-unit-label">Unidades</label><div id="fob-filter-unidade" class="checkbox-multiselect" aria-labelledby="fob-unit-label"></div></div>
+        <div class="field"><label id="fob-family-label">Famílias</label><div id="fob-filter-familia" class="checkbox-multiselect" aria-labelledby="fob-family-label"></div></div>
+        <div class="field"><label id="fob-channel-label">Canais de venda</label><div id="fob-filter-canal" class="checkbox-multiselect" aria-labelledby="fob-channel-label"></div></div>
+        <button class="primary-button" type="submit">Consultar comparativo <span aria-hidden="true">→</span></button>
+      </div>
+      <p class="fob-filter-note">Cadastros iniciais validados de 01 a 04/10/2026. Outros períodos aguardam validação das regras e despesas.</p>
+    </form>
+    <p id="fob-status" class="status" role="status" aria-live="polite">Abra o comparativo para consultar os dados.</p>
+    <div id="fob-alert" class="fob-alert" hidden></div>
+    <div id="fob-cards" class="fob-cards" aria-label="Totalizadores por canal"></div>
+    <section class="report-card fob-report" aria-labelledby="fob-table-title">
+      <header class="report-header"><h2 id="fob-table-title">Família × Canal Venda<span>Peso, preço médio FOB e resultado por canal</span></h2><div class="period"><span>PERÍODO CONSULTADO</span><strong id="fob-period">—</strong></div></header>
+      <div class="fob-table-tools">
+        <div role="group" aria-label="Apresentação"><button type="button" data-fob-mode="matrix" aria-pressed="true">Comparativo</button><button type="button" data-fob-mode="costs" aria-pressed="false">Composição de custos</button></div>
+        <label><input type="checkbox" id="fob-reference"> Mostrar referência Excel</label>
+        <button id="fob-export" type="button" disabled>Exportar resumo CSV</button>
+      </div>
+      <p class="fob-table-help">Clique em uma família ou canal para abrir os itens. “Pendente” mantém o FOB em aberto; a referência Excel é apenas comparativa.</p>
+      <div class="fob-table-scroll" tabindex="0" aria-label="Comparativo FOB; role horizontalmente para ver todos os canais">
+        <table id="fob-table"><thead></thead><tbody><tr><td class="empty">Aguardando consulta do comparativo.</td></tr></tbody><tfoot></tfoot></table>
+      </div>
+      <footer class="report-footer"><span id="fob-source">Dados pela API autenticada da Granja Brasília.</span><span id="fob-count">—</span></footer>
+    </section>
+    <details class="fob-method filter-card"><summary>Como os valores são calculados</summary><p>Preço FOB/kg = preço praticado − frete − comissão − adicional de comissão − contrato − administração − logística reversa − pallet − descarga, conforme a unidade. Valor FOB = peso × preço FOB/kg.</p><p>Frete tipo 1 sem valor e frete de Januária exigem preenchimento manual. Itens pendentes não entram como FOB concluído. Os cadastros de comissão são a referência inicial calculada no Excel.</p><p>A NF 806684, unidade 111, pode aparecer como provisória enquanto sua origem não estiver conciliada. As exclusões seguem os itens comprovados no Excel; uma exceção não é aplicada automaticamente a outros períodos.</p></details>
+  </section>
+</main>
+</body></html>

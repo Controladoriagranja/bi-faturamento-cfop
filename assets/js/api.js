@@ -93,6 +93,9 @@ async function apiGet(endpoint, params = {}, options = {}) {
         }
 
         if (response.status === 404) {
+            if (normalizedEndpoint.startsWith("/api/comercial/comparativo-fob/")) {
+                throw new Error("O módulo Comparativo FOB ainda não está disponível na API. Instale o pacote do Anderson e confira o encaminhamento desta rota no Worker.");
+            }
             if (normalizedEndpoint.endsWith("/detalhes")) {
                 throw new Error("O detalhamento ainda não está disponível nessa API. Atualize o módulo de Faturamento no backend e confira a rota de detalhes no Worker.");
             }

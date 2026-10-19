@@ -51,7 +51,9 @@
     includeDependentRefresh: false, optionsProvider: async () => opcoes,
     onChange: () => status("Filtros alterados. Clique em Consultar relatório.", "info")
   });
+  const state = new ReportState('faturamento');
   filters.register();
+  state.bind({form:'filters-form',filters,dates:{data_inicio:'data-inicio',data_fim:'data-fim'}});
   $("filter-unidade").querySelector("button").setAttribute("aria-labelledby", "unidade-label");
   document.addEventListener("keydown", e => {if (e.key === "Escape") filters.closeAll();});
 
@@ -120,19 +122,22 @@
     const tr = document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent="Consulta não disponível. Confira a mensagem acima.";tr.append(td);
     $("report-body").replaceChildren(tr);$("report-total").replaceChildren();$("period-label").textContent="—";
   }
-  async function consultar() {
-    const inicio = $("data-inicio").value, fim = $("data-fim").value;
+  async function consultar(restored = null) {
+    const parametros = restored || state.current();
+    const inicio = parametros.data_inicio, fim = parametros.data_fim;
     if (!inicio || !fim || inicio > fim) {status("Informe um período válido, com a data inicial anterior ou igual à final.", "error");return;}
     controller?.abort();controller=new AbortController();const own=++sequence;
     FaturamentoDetails.close();
-    const parametros = {data_inicio:inicio,data_fim:fim,...filters.values()};
+    state.saveDraft();
     filters.closeAll();$("report-body").closest("section").setAttribute("aria-busy", "true");
     status("Consultando notas fiscais e indicadores…");
     try {
       const result=await apiGet(APP_CONFIG.endpoints.resumo,parametros,{signal:controller.signal});
       if (own!==sequence)return;
       filtrosExibidos = structuredClone(parametros);
+      state.save({applied:filtrosExibidos});
       render(result);
+      if(!state.matchesDraft(parametros))status('Relatório atualizado. Há filtros alterados; clique em Consultar relatório para aplicá-los.');
     } catch(error) {
       if (error.name==="AbortError" || own!==sequence)return;
       clearReport();status(error.message,"error");
@@ -144,9 +149,8 @@
     try {
       opcoes=await apiGet(APP_CONFIG.endpoints.filtros);
       await filters.loadOptions({preserve:false});
-      $("data-inicio").value=opcoes.periodo_disponivel?.data_inicio || "";
-      $("data-fim").value=opcoes.periodo_disponivel?.data_fim || "";
-      if ($("data-inicio").value && $("data-fim").value) await consultar();
+      state.restore({data_inicio:opcoes.periodo_disponivel?.data_inicio || '',data_fim:opcoes.periodo_disponivel?.data_fim || ''});
+      if ($("data-inicio").value && $("data-fim").value) await consultar(state.applied());
       else status("A fonte ainda não tem notas fiscais disponíveis.");
     } catch(error) {clearReport();status(error.message,"error");}
   }
