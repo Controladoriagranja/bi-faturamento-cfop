@@ -72,4 +72,4 @@ A tela abre na ordem padr?o do relat?rio. Clique no cabe?alho de qualquer coluna
 
 ### Tema
 
-O bot?o de sol/lua no topo alterna claro e escuro. Usa a chave bi-zootecnico-theme, igual aos relat?rios existentes, com prefer?ncia salva por origem do navegador. Sem prefer?ncia salva, acompanha o sistema.
+O bot?o de sol/lua no topo alterna claro e escuro. Usa a chave bi-zootecnico-theme, igual aos relatorios existentes, com preferencia salva por origem do navegador. Sem preferencia salva, acompanha o sistema.
