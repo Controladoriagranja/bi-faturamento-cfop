@@ -1,5 +1,13 @@
 # Comparativo PM FOB — entrega integrada
 
+## Atualização: consulta desde janeiro
+
+O intervalo aceito agora é 01/01/2026 até a data atual. Consultas totalmente dentro de 01–04/10 mantêm o motor e o perímetro conferidos no Excel. Os demais intervalos (inclusive mistos) usam `historical.py`: SELECT agregado por família/canal e SELECT paginado de até 500 itens, sem carregar o ano em memória e sem o limite de 5.000 itens da referência. Não foram executadas consultas reais nesta máquina; desempenho e disponibilidade histórica precisam ser conferidos no ambiente do Anderson.
+
+O histórico usa os registros existentes da view, preço praticado e peso do banco. Não aplica whitelist, despesas ou referências financeiras de outubro, nem a nota provisória. O canal vem do cadastro atual `comercial.vendedor_grupo.canal_venda`, com agrupamento da família SUBPRODUTOS; canais adicionais permanecem visíveis. Sem vigência histórica desse cadastro, a classificação de janeiro ainda precisa de validação. Despesas e FOB ficam nulos/pendentes, sem parcial fictício ou referência Excel. Pesos/preços ausentes são sinalizados. O detalhe mostra os dados originais, inclusive frete, e o motivo da pendência.
+
+Os filtros iniciais de famílias/unidades ainda usam as opções do catálogo; Todos inclui também as opções adicionais existentes na view. O pacote do Anderson foi atualizado na mesma pasta `bi_generic/comparativo_fob/`, com novo `historical.py` e ajuste de `service.py`. Atualize todos os arquivos desse módulo; o registro compartilhado continua igual, sem duplicá-lo. Nenhum SQL DDL, job, API de outro BI ou motor de outubro foi alterado. Levantamento das fontes em [FOB_ORIGENS_E_CADASTROS.md](FOB_ORIGENS_E_CADASTROS.md).
+
 ## Frontend oficial
 
 A implementação usa dois HTMLs independentes neste mesmo projeto: `index.html` contém exclusivamente Faturamento por Vendedor Pai e `comparativo-fob.html` contém o Comparativo PM FOB. Ambos funcionam por acesso direto. Como no Bi-Matrizes, `data-page` identifica a página e um menu compartilhado usa links para os arquivos, com indicação da página ativa. O endereço antigo `index.html#comparativo-fob` redireciona para `comparativo-fob.html`.
@@ -68,11 +76,11 @@ Este ZIP substitui a organização dos pacotes anteriores: não copiar `fob/` ne
 
 O código do Worker não foi fornecido nem alterado. O acesso público continua dependendo do encaminhamento e da permissão dos três GET `/api/comercial/comparativo-fob/filtros`, `/resumo` e `/detalhes`. A autenticação continua a mesma: Bearer do Portal para o Worker e autenticação interna existente para a API.
 
-Nenhum SQL de criação ou alteração é necessário. As fontes continuam sendo `comercial.vw_faturamento_cfop_filtrado` e `comercial.faturamento_cfop`, com leitura pelo `banco()` existente. A consulta tem período restrito, limite de 5.000 linhas (exceder gera erro, sem truncar totais) e cache de 45 segundos. A consulta pontual da NF tem limite de 100 itens. Não há extratores, cargas ou gravações no módulo.
+Nenhum SQL de criação ou alteração é necessário. As fontes são `comercial.vw_faturamento_cfop_filtrado`, `comercial.faturamento_cfop` e, no histórico, `comercial.vendedor_grupo`, com leitura pelo `banco()` existente. A consulta da referência tem limite de 5.000 linhas (exceder gera erro, sem truncar totais) e cache de 45 segundos; o histórico usa agregação e paginação SQL. A consulta pontual da NF tem limite de 100 itens. Não há extratores, cargas ou gravações no módulo.
 
 ## Resultado e limites dos dados
 
-O catálogo inicial está **restrito a 01–04/10/2026**. Outros períodos são recusados até validar os cadastros e o perímetro; o Excel recebido não comprova regras para meses futuros. As diferenças de CFOP 5151-06 seguem a associação dos itens comprovados, sem criar exclusão universal do CFOP.
+O catálogo inicial está **restrito a 01–04/10/2026**. Outros períodos são consultados no modo histórico descrito acima, com FOB pendente; o Excel recebido não comprova despesas/regras dos outros meses. As diferenças de CFOP 5151-06 no recorte conferido seguem a associação dos itens comprovados, sem criar exclusão universal do CFOP.
 
 O arquivo Excel disponível mudou de hash durante o trabalho. O catálogo final usa a versão atual, identificada no manifesto do ZIP. A comparação de suas 2.340 linhas com os artefatos originais não encontrou diferenças nos pesos, canais, FOB salvo, custos ou fórmulas presentes; tabelas auxiliares e chaves também são iguais. A conferência está em `artifacts/fob/validacao_catalogo.json`; os artefatos antigos conservam o hash original.
 

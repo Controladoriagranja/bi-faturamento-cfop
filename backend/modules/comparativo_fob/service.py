@@ -1,4 +1,4 @@
-"""Comparativo limitado ao período comprovado. SELECTs somente na primeira consulta."""
+"""Referência conferida do Excel e histórico separado da view, somente leitura."""
 from collections import defaultdict
 from datetime import date,timedelta
 from decimal import Decimal
@@ -13,6 +13,7 @@ from fob.repository import read_invoice
 from fob.snapshot import SnapshotCatalog
 from .aggregation import aggregate,public,order_items
 from .config import CATALOG_PATH,CHANNELS,CONFIG,COSTS,UNITS
+from .historical import execute_history
 
 logger=logging.getLogger(__name__)
 
@@ -94,7 +95,9 @@ class ComparativoFOBService:
             if request.query_params:raise HTTPException(422,'Filtros não são aceitos nesta operação.')
             return dict(unidade=[dict(value=k,label=v) for k,v in UNITS.items()],
                 familia=sorted({r.fields.get('familia') or 'Sem família' for r in catalog.items}),canal=list(CHANNELS),
-                periodo_disponivel=dict(data_inicio=catalog.period[0],data_fim=catalog.period[1]))
+                periodo_disponivel=dict(data_inicio='2026-01-01',data_fim=date.today().isoformat()),
+                periodo_referencia=dict(data_inicio=catalog.period[0],data_fim=catalog.period[1]),
+                observacao='Histórico da view desde janeiro. Despesas validadas somente de 01 a 04/10/2026.')
         allowed={'data_inicio','data_fim','unidade','familia','canal','pendentes','busca','pagina','por_pagina','ordenar_por','ordem'}
         if set(request.query_params)-allowed:raise HTTPException(422,'Filtro não configurado.')
         def single(name,default=''):
@@ -103,12 +106,14 @@ class ComparativoFOBService:
             return values[0] if values else default
         try:start,end=(date.fromisoformat(single(k,catalog.period[i])) for i,k in enumerate(('data_inicio','data_fim')))
         except ValueError:raise HTTPException(422,'Data inválida. Use AAAA-MM-DD.')
-        if start>end or start.isoformat()<catalog.period[0] or end.isoformat()>catalog.period[1]:
-            raise HTTPException(422,'Os cadastros desta entrega estão validados somente de 01/10/2026 a 04/10/2026.')
+        if start>end or start<date(2026,1,1) or end>date.today():
+            raise HTTPException(422,'Consulte entre 01/01/2026 e a data atual.')
         choices={key:request.query_params.getlist(key) for key in ('unidade','familia','canal')}
         if any(len(vals)>100 or any(len(v)>150 for v in vals) for vals in choices.values()):raise HTTPException(422,'Limite de filtro excedido.')
         only_pending=single('pendentes','0');search=single('busca').strip().casefold()
         if only_pending not in ('0','1') or len(search)>200:raise HTTPException(422,'Busca ou estado inválido.')
+        if start.isoformat()<catalog.period[0] or end.isoformat()>catalog.period[1]:
+            return execute_history(self.context,operation,start,end,choices,search,single)
         payload=self._read();rows=[]
         for row in payload['rows']:
             identity=row['identificacao'];day=str(identity['data'])

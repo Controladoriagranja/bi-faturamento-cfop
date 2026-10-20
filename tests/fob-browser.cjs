@@ -173,7 +173,36 @@ const server=http.createServer((req,res)=>{
     await grid.locator('[data-theme-toggle]').click();await grid.setViewportSize({width:390,height:844});await checkHeader();
     await grid.screenshot({path:path.join(artifacts,'cabecalho-mobile-rolagem.png')});
     await grid.locator('[data-fob-mode=costs]').click();await checkHeader();await grid.close();
-    assert.deepEqual(errors,[]);await context.close();
+    const history=await context.newPage();history.on('pageerror',error=>errors.push(error.message));
+    let januaryRequested=false;
+    await history.route('https://api-bi-granja.controladoriagb05.workers.dev/**',route=>{
+      const url=new URL(route.request().url());
+      if(url.pathname.endsWith('/filtros'))return route.fulfill({json:{...options,
+        periodo_disponivel:{data_inicio:'2026-01-01',data_fim:'2026-10-20'},periodo_referencia:options.periodo_disponivel}});
+      if(url.searchParams.get('data_inicio')!=='2026-01-01')return route.fulfill({json:summary(rows)});
+      januaryRequested=true;
+      const pending={...total([rows[0]]),pendentes:1,provisorios:0,divergencias:0,valor_fob:null,
+        valor_fob_parcial:null,valor_fob_excel:null,pm_fob_kg:null,pm_fob_excel:null,peso_excel:null,
+        componentes:Object.fromEntries(costs.map(k=>[k,{valor:null,media_kg:null,pendentes:1}]))};
+      return route.fulfill({json:{contexto:{modo:'historico',referencia_disponivel:false,
+        data_inicio:'2026-01-01',data_fim:'2026-01-31',observacao:'Despesas do período não cadastradas.'},
+        total:pending,grupos:[{familia:'PEITO',canal:'Sem Vínculo',...pending}],
+        familias:[{familia:'PEITO',...pending}],canais:[{canal:'Sem Vínculo',...pending}]}});
+    });
+    await history.goto(`http://127.0.0.1:${server.address().port}/comparativo-fob.html`);
+    await history.locator('#fob-status').filter({hasText:'Comparativo atualizado.'}).waitFor();
+    assert.equal(await history.locator('#fob-inicio').getAttribute('min'),'2026-01-01');
+    await history.locator('#fob-reference').check();
+    await history.locator('#fob-inicio').fill('2026-01-01');await history.locator('#fob-fim').fill('2026-01-31');
+    await history.locator('#fob-filters button[type=submit]').click();
+    await history.locator('#fob-period').filter({hasText:'01/01/2026 a 31/01/2026'}).waitFor();
+    assert.ok(januaryRequested);assert.ok(await history.locator('#fob-reference').isDisabled());
+    assert.match(await history.locator('#fob-cards').innerText(),/Preço praticado: 10,0000/);
+    assert.match(await history.locator('#fob-table thead').innerText(),/Sem Vínculo/);
+    assert.doesNotMatch(await history.locator('#fob-table tbody').innerText(),/Excel/);
+    await history.locator('[data-fob-mode=costs]').click();
+    assert.match(await history.locator('#fob-table tbody').innerText(),/Pendente/);
+    await history.close();assert.deepEqual(errors,[]);await context.close();
     console.log('OK: ordem de famílias/colunas, cabeçalho acima das células fixas em rolagem vertical/horizontal e mobile, diferenças na auditoria; dois HTMLs, menu/ativo, filtros separados, recarga/histórico, matriz/custos, itens, CSV, ordenação, 503/404 e cancelamento. Nenhum backend/banco executado.');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

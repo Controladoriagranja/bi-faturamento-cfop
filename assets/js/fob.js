@@ -28,7 +28,7 @@
   for(const key of ['unidade','familia','canal'])$('fob-filter-'+key).querySelector('button').setAttribute('aria-labelledby',{'unidade':'fob-unit-label','familia':'fob-family-label','canal':'fob-channel-label'}[key]);
   document.addEventListener('keydown',event=>{if(event.key==='Escape')filters.closeAll();});
   function status(text,error=false){$('fob-status').textContent=text;$('fob-status').className='status '+(error?'error':'info');}
-  function referenceVisible(){return $('fob-reference').checked;}
+  function referenceVisible(){return $('fob-reference').checked&&payload?.contexto?.referencia_disponivel!==false;}
   function secondary(parent,text){parent.append(node('small',text,'fob-secondary'));}
   function openButton(parent,text,scope){const b=node('button',text,'fob-data-button');b.type='button';b.addEventListener('click',()=>openItems(scope));parent.append(b);return b;}
   function renderCards(){
@@ -38,7 +38,8 @@
       heading.append(node('h3',channel.canal),badge(channel.pendentes?`${channel.pendentes} pendentes`:channel.itens?'Calculado':'Sem movimento',channel.pendentes?'pending':''));
       card.append(heading,node('strong',`${fmt(channel.peso)} kg`));
       card.append(node('p',channel.valor_fob===null?'FOB em aberto':`FOB ${fmt(channel.valor_fob,'money')}`));
-      if(channel.pendentes)card.append(node('p',`Parcial concluído: ${fmt(channel.valor_fob_parcial,'money')}`));
+      if(payload.contexto.modo==='historico')card.append(node('p',`Preço praticado: ${fmt(channel.preco_praticado_kg,'unit')} R$/kg`));
+      else if(channel.pendentes)card.append(node('p',`Parcial concluído: ${fmt(channel.valor_fob_parcial,'money')}`));
       else card.append(node('p',`PM FOB: ${fmt(channel.pm_fob_kg,'unit')} R$/kg`));
       if(channel.provisorios)card.append(badge(`${channel.provisorios} item provisório`,'provisional'));
       if(referenceVisible()){
@@ -96,17 +97,22 @@
     $('fob-table').tBodies[0].replaceChildren(body);$('fob-table').tFoot.replaceChildren(row(payload.total,true));
   }
   function render(){
+    channels.splice(0,channels.length,...new Set(['Varejo','Atacado','Subprodutos',...payload.canais.map(c=>c.canal)]));
+    $('fob-reference').disabled=payload.contexto.referencia_disponivel===false;
+    document.querySelector('.fob-reference-tag').textContent=payload.contexto.modo==='historico'?'Histórico do banco · FOB aguarda despesas':'Referência de 01 a 04/10/2026';
     renderCards();if(mode==='matrix')renderMatrix();else renderCosts();
     const total=payload.total,context=payload.contexto;
     const notices=[];
+    if(context.modo==='historico')notices.push(context.observacao);
+    if(total.pesos_ausentes)notices.push(`${total.pesos_ausentes} itens sem peso: o peso apresentado está incompleto.`);
     if(total.pendentes)notices.push(`${total.pendentes} itens aguardam dados: ${fmt(total.peso_pendente)} kg. O FOB total permanece em aberto.`);
     if(total.ausentes)notices.push(`${total.ausentes} itens da referência não foram encontrados na origem; o peso apresentado está incompleto.`);
     if(total.provisorios)notices.push(`NF 806684: ${total.provisorios} item provisório do Excel. Conciliação: ${context.consulta_nf_806684.replaceAll('_',' ')}.`);
     if(total.divergencias)notices.push(`${total.divergencias} itens com diferença de entrada ou origem em relação ao Excel. Esse aviso pode coincidir com uma pendência. Abra “Ver cálculo” nos itens para comparar os valores.`);
     $('fob-alert').textContent=notices.join(' ');$('fob-alert').hidden=!notices.length;
     $('fob-period').textContent=`${date(context.data_inicio)} a ${date(context.data_fim)}`;
-    $('fob-source').textContent='PostgreSQL · Cadastros iniciais do Excel · Sem arredondamento intermediário';
-    $('fob-count').textContent=`${fmt(total.itens)} itens · ${fmt(context.linhas_fora_perimetro)} fora do perímetro na base de referência`;
+    $('fob-source').textContent=context.modo==='historico'?'PostgreSQL · Despesas históricas ainda não cadastradas · Canal do cadastro atual':'PostgreSQL · Cadastros iniciais do Excel · Sem arredondamento intermediário';
+    $('fob-count').textContent=context.modo==='historico'?`${fmt(total.itens)} itens da view no período consultado`:`${fmt(total.itens)} itens · ${fmt(context.linhas_fora_perimetro)} fora do perímetro na base de referência`;
     $('fob-export').disabled=!payload.grupos.length;
   }
   async function query(restored=null){
@@ -135,7 +141,7 @@
       await filters.loadOptions({preserve:false});
       const bounds=options.periodo_disponivel;
       for(const id of ['fob-inicio','fob-fim']){$(id).min=bounds.data_inicio;$(id).max=bounds.data_fim;}
-      state.restore(bounds);initialized=true;await query(state.applied());
+      state.restore(options.periodo_referencia||bounds);initialized=true;await query(state.applied());
     }catch(error){status(error.message,true);}finally{initializing=false;}
   }
   $('fob-filters').addEventListener('submit',event=>{event.preventDefault();if(initialized)query();else initialize();});

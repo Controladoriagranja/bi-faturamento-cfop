@@ -20,7 +20,7 @@ def build(api_reference,snapshot):
     # Mantém o motor já validado. Só a localização do pacote muda.
     for name in ('calculator','reference','repository','snapshot','workbook'):
         files[f'{PACKAGE}/{name}.py']=(ROOT/f'backend/fob/{name}.py').read_bytes()
-    for name in ('aggregation','config','service'):
+    for name in ('aggregation','config','service','historical'):
         source=(ROOT/f'backend/modules/comparativo_fob/{name}.py').read_text(encoding='utf-8')
         source=source.replace('from fob.calculator import ','from .calculator import ')
         source=source.replace('from fob.repository import ','from .repository import ')
@@ -89,6 +89,7 @@ API/api_zootecnico/
       aggregation.py
       calculator.py
       config.py
+      historical.py
       reference.py
       referencia_excel.json
       repository.py
@@ -109,8 +110,9 @@ GET /api/comercial/comparativo-fob/detalhes
 
 Preço praticado, componentes de despesas, preço FOB, valor FOB, médias por família/canal, pendências e auditoria por item são os já implementados. Nenhuma regra ou valor de referência foi recalculado para este empacotamento. O catálogo do pacote anterior foi mantido byte a byte. O relatório faturamento-nf continua com o código fornecido na sua API.
 
-LIMITES MANTIDOS
-Cadastros comprovados somente para 01–04/10/2026. Fretes manuais não confirmados continuam pendentes; a NF 806684 pode aparecer provisória até conciliação. Não há CRUD ou gravação no PostgreSQL.
+HISTÓRICO E LIMITES
+Consultas desde 01/01/2026 até a data atual, com agregação e paginação no PostgreSQL. Fora de 01–04/10/2026, peso e preço praticado vêm da view existente; FOB e despesas ficam pendentes, sem aplicar cadastros de outubro a outros meses. O canal vem do cadastro atual comercial.vendedor_grupo.canal_venda (sem vigência histórica); família SUBPRODUTOS é separada. Canais adicionais permanecem visíveis. Períodos mistos também usam o modo histórico, sem comparação com o Excel. As inclusões/exclusões históricas são as da view, sem extrapolar exceções pontuais do Excel. Filtros iniciais de famílias/unidades usam o catálogo de referência; selecione Todos para incluir outras existentes no histórico.
+Cadastros comprovados somente para 01–04/10/2026. Fretes manuais não confirmados continuam pendentes; a NF 806684 pode aparecer provisória até conciliação. Não há CRUD, SQL DDL ou gravação no PostgreSQL. Se o módulo já estiver instalado, atualize todos os arquivos de bi_generic/comparativo_fob; o registro em servico_zootecnico.py continua o mesmo, não duplique.
 
 VALIDAÇÃO
 Verificações pequenas de sintaxe, imports internos, integridade do pacote e cálculos puros. Nenhuma API, carga, job, consulta ao banco ou deploy foi executado nesta máquina. O acesso pelo endereço público depende do Worker encaminhar/autorizar as rotas acima; o código do Worker não faz parte do ZIP fornecido e não foi alterado.
