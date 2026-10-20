@@ -1,6 +1,13 @@
 /* Apresentação do Comparativo. Cálculos, totais e médias pertencem ao servidor. */
 (() => {
   const $=id=>document.getElementById(id),channels=['Varejo','Atacado','Subprodutos'];
+  // Ordem de apresentação: FaturamentoANeRA!AK860:AK889. Não altera agrupamentos/cálculos.
+  const familyOrder=['ASA INTEIRA','COXINHA DA ASA','MEIO DA ASA','COXA SOBRECOXA','LEG QUARTER (CSCD)','SOBRECOXA','COXA','DORSO','PEITO','FILÉ DE PEITO','FRANGO PASSARINHO','MOELA','FÍGADO','CORAÇÃO','PESCOÇO','PÉS','SAMBIQUIRA','LINGUIÇA','FRANGO INTEIRO TEMPERADO','FRANGO INTEIRO','CARNE MECANICAMENTE SEPARADA (CMS)','DORSO E PELE A GRANEL','PELES (PEITO/COXAS)','SUBPRODUTOS'];
+  const familyKey=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+  const familyRank=new Map(familyOrder.map((name,index)=>[familyKey(name),index]));
+  const compareFamilies=(a,b)=>(familyRank.get(familyKey(a))??familyOrder.length)-(familyRank.get(familyKey(b))??familyOrder.length)||String(a).localeCompare(String(b),'pt-BR');
+  const orderedFamilies=()=>[...payload.familias].sort((a,b)=>compareFamilies(a.familia,b.familia));
+  const orderedGroups=()=>[...payload.grupos].sort((a,b)=>compareFamilies(a.familia,b.familia)||channels.indexOf(a.canal)-channels.indexOf(b.canal));
   const costs={frete:'Frete',comissao:'Comissão',adicional_comissao:'Adicional comissão',contrato:'Contrato',contrato_administracao:'Administração',logistica_reversa:'Logística reversa',pallet:'Pallet',descarga:'Descarga'};
   const number=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2});
   const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
@@ -43,7 +50,7 @@
     $('fob-cards').replaceChildren(frag);
   }
   function matrixValues(tr,group,scope,total=false){
-    for(const [key,kind] of [['peso','number'],['pm_fob_kg','unit'],['valor_fob','money'],['pendentes','number']]){
+    for(const [key,kind] of [['peso','number'],['valor_fob','money'],['pm_fob_kg','unit'],['pendentes','number']]){
       const td=node('td',undefined,total?'fob-total-cell':'');
       if(!group){td.textContent='—';tr.append(td);continue;}
       const pending=group.pendentes&&['pm_fob_kg','valor_fob'].includes(key);
@@ -59,11 +66,11 @@
     const top=node('tr'),bottom=node('tr'),label=node('th','Família');label.rowSpan=2;label.scope='col';top.append(label);
     for(const channel of [...channels,'Total']){
       const th=node('th',channel);th.colSpan=4;th.scope='colgroup';top.append(th);
-      for(const text of ['Peso (kg)','PM FOB (R$/kg)','Valor FOB','Pendências'])bottom.append(node('th',text));
+      for(const text of ['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Pendências'])bottom.append(node('th',text));
     }
     $('fob-table').tHead.replaceChildren(top,bottom);
     const body=document.createDocumentFragment();
-    for(const family of payload.familias){
+    for(const family of orderedFamilies()){
       const tr=node('tr'),th=node('th',undefined,'fob-family');th.scope='row';openButton(th,family.familia,{familia:family.familia});tr.append(th);
       for(const channel of channels)matrixValues(tr,payload.grupos.find(g=>g.familia===family.familia&&g.canal===channel),{familia:family.familia,canal:channel});
       matrixValues(tr,family,{familia:family.familia},true);body.append(tr);
@@ -84,7 +91,7 @@
       for(const key of Object.keys(costs)){const c=group.componentes[key];tr.append(node('td',c.pendentes?'Pendente':fmt(c.media_kg,'unit')));}
       tr.append(node('td',group.pendentes?'Pendente':fmt(group.pm_fob_kg,'unit')),node('td',group.pendentes?'Pendente':fmt(group.valor_fob,'money')),node('td',fmt(group.pendentes)));return tr;
     }
-    for(const group of payload.grupos)body.append(row(group));
+    for(const group of orderedGroups())body.append(row(group));
     if(!payload.grupos.length){const tr=node('tr'),td=node('td','Nenhum item encontrado.','empty');td.colSpan=15;tr.append(td);body.append(tr);}
     $('fob-table').tBodies[0].replaceChildren(body);$('fob-table').tFoot.replaceChildren(row(payload.total,true));
   }
@@ -95,7 +102,7 @@
     if(total.pendentes)notices.push(`${total.pendentes} itens aguardam dados: ${fmt(total.peso_pendente)} kg. O FOB total permanece em aberto.`);
     if(total.ausentes)notices.push(`${total.ausentes} itens da referência não foram encontrados na origem; o peso apresentado está incompleto.`);
     if(total.provisorios)notices.push(`NF 806684: ${total.provisorios} item provisório do Excel. Conciliação: ${context.consulta_nf_806684.replaceAll('_',' ')}.`);
-    if(total.divergencias)notices.push(`${total.divergencias} itens com diferença de entrada ou origem. Abra os itens para conferir.`);
+    if(total.divergencias)notices.push(`${total.divergencias} itens com diferença de entrada ou origem em relação ao Excel. Esse aviso pode coincidir com uma pendência. Abra “Ver cálculo” nos itens para comparar os valores.`);
     $('fob-alert').textContent=notices.join(' ');$('fob-alert').hidden=!notices.length;
     $('fob-period').textContent=`${date(context.data_inicio)} a ${date(context.data_fim)}`;
     $('fob-source').textContent='PostgreSQL · Cadastros iniciais do Excel · Sem arredondamento intermediário';
@@ -124,6 +131,7 @@
     if(initializing||initialized)return;initializing=true;
     try{
       status('Carregando filtros do Comparativo FOB…');options=await apiGet(APP_CONFIG.fob.filtros);
+      options.familia=[...(options.familia||[])].sort(compareFamilies);
       await filters.loadOptions({preserve:false});
       const bounds=options.periodo_disponivel;
       for(const id of ['fob-inicio','fob-fim']){$(id).min=bounds.data_inicio;$(id).max=bounds.data_fim;}
@@ -175,6 +183,7 @@
       const tr=node('tr');
       for(const [key] of itemColumns){let value=item[key]??item.identificacao?.[key];const text=key==='data'?date(value):['produto','cliente','unidade_documento','nota_numero','familia','canal'].includes(key)?String(value??'—'):value===null||value===undefined?(key.endsWith('_kg')||key==='valor_fob'?'Pendente':'—'):fmt(value,key==='valor_fob'?'money':key.endsWith('_kg')?'unit':'number');tr.append(node('td',text));}
       const state=node('td');state.append(badge(item.valor_fob===null?'Pendente':'Calculado',item.valor_fob===null?'pending':''));if(item.provisorio)state.append(badge('Provisório','provisional'));tr.append(state);
+      if(Object.keys(item.divergencias_entrada||{}).length)state.append(badge('Diferença de entrada','review'));
       const action=node('td'),button=node('button','Ver cálculo');button.type='button';button.setAttribute('aria-expanded','false');
       button.addEventListener('click',()=>{const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Ver cálculo':'Fechar cálculo';if(expanded)tr.nextElementSibling?.remove();else tr.after(auditRow(item,itemColumns.length+2));});action.append(button);tr.append(action);body.append(tr);
     }
@@ -201,7 +210,7 @@
   $('fob-export').addEventListener('click',()=>{
     if(!payload)return;
     const headers=['Família','Canal','Peso kg','Praticado kg',...Object.values(costs).map(c=>c+' kg'),'PM FOB kg','Valor FOB','Parcial calculado','Pendências','Provisórios','Referência Excel'];
-    const rows=payload.grupos.map(g=>[g.familia,g.canal,g.peso,g.preco_praticado_kg,...Object.keys(costs).map(k=>g.componentes[k].media_kg),g.pm_fob_kg,g.valor_fob,g.valor_fob_parcial,g.pendentes,g.provisorios,g.valor_fob_excel]);
+    const rows=orderedGroups().map(g=>[g.familia,g.canal,g.peso,g.preco_praticado_kg,...Object.keys(costs).map(k=>g.componentes[k].media_kg),g.pm_fob_kg,g.valor_fob,g.valor_fob_parcial,g.pendentes,g.provisorios,g.valor_fob_excel]);
     rows.push(['Total','',payload.total.peso,payload.total.preco_praticado_kg,...Object.keys(costs).map(k=>payload.total.componentes[k].media_kg),payload.total.pm_fob_kg,payload.total.valor_fob,payload.total.valor_fob_parcial,payload.total.pendentes,payload.total.provisorios,payload.total.valor_fob_excel]);
     download([headers,...rows],`comparativo-fob-${applied.data_inicio}-${applied.data_fim}.csv`);
   });

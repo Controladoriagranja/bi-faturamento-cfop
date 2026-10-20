@@ -9,13 +9,13 @@ const rows=Array.from({length:65},(_,i)=>{
   return {identificacao:{data:'2026-10-01',unidade_documento:i%2?'111':'10',nota_numero:String(1000+i),produto:'349',cliente:'9880',cfop:'5102'},
     familia:i%2?'FILÉ DE PEITO':'FRANGO INTEIRO',canal,peso:'10',peso_excel:'10',preco_praticado_kg:'10',preco_fob_kg:pending?null:'9.7',valor_fob:pending?null:'97',valor_fob_excel:'97',
     origem_registro:'Origem sintética de teste',origem_excel:'Referência sintética!7',status:pending?'pendente':'calculado',provisorio:i===1,
-    divergencias_entrada:{},pendencias:pending?['frete']:[],dados_entrada:{frete:'1'},
+    divergencias_entrada:i===1?{frete_kg:{origem:'0.93',excel:'0.91'}}:{},pendencias:pending?['frete']:[],dados_entrada:{frete:'1'},
     componentes:Object.fromEntries(costs.map(k=>[k,{value:k==='frete'?(pending?null:'0.2'):k==='comissao'?'0.1':'0',origin:'Cadastro sintético de teste',formula:'Fórmula sintética para inspeção',status:k==='frete'&&pending?'pendente_manual':'calculado'}])),
     ...Object.fromEntries(costs.map(k=>[k+'_kg',k==='frete'?(pending?null:'0.2'):k==='comissao'?'0.1':'0']))};
 });
 function total(list){
   const weight=list.length*10,pending=list.filter(r=>r.valor_fob===null).length,partial=list.filter(r=>r.valor_fob!==null).length*97;
-  return {itens:list.length,peso:String(weight),peso_excel:String(weight),diferenca_peso:'0',peso_pendente:String(pending*10),pendentes:pending,ausentes:0,provisorios:list.filter(r=>r.provisorio).length,divergencias:0,preco_praticado_kg:list.length?'10':null,
+  return {itens:list.length,peso:String(weight),peso_excel:String(weight),diferenca_peso:'0',peso_pendente:String(pending*10),pendentes:pending,ausentes:0,provisorios:list.filter(r=>r.provisorio).length,divergencias:list.filter(r=>Object.keys(r.divergencias_entrada||{}).length).length,preco_praticado_kg:list.length?'10':null,
     valor_fob:pending?null:String(partial),valor_fob_parcial:String(partial),pm_fob_kg:pending||!weight?null:'9.7',valor_fob_excel:String(list.length*97),pm_fob_excel:weight?'9.7':null,diferenca_fob:pending?null:'0',
     componentes:Object.fromEntries(costs.map(k=>[k,{valor:k==='frete'&&pending?null:'0',valor_parcial:'0',media_kg:k==='frete'?(pending?null:'0.2'):k==='comissao'?'0.1':'0',pendentes:k==='frete'?pending:0}]))};
 }
@@ -87,6 +87,7 @@ const server=http.createServer((req,res)=>{
     await page.screenshot({path:path.join(artifacts,'comparativo-desktop.png'),fullPage:true});
     await page.locator('#fob-cards article').first().getByRole('button').click();await detailReady();
     assert.equal(requests.at(-1).params.get('canal'),'Varejo');assert.equal(await page.locator('#fob-items-body tr').count(),50);
+    assert.ok((await page.locator('#fob-items-body').textContent()).includes('Diferença de entrada'));
     await page.locator('#fob-items-next').click();await detailReady();assert.equal(requests.at(-1).params.get('pagina'),'2');assert.equal(await page.locator('#fob-items-body tr').count(),10);
     await page.locator('#fob-items-head button').filter({hasText:/^Peso /}).click();await detailReady();assert.equal(requests.at(-1).params.get('ordenar_por'),'peso');assert.equal(requests.at(-1).params.get('pagina'),'1');
     await page.locator('#fob-items-body button').first().click();assert.ok((await page.locator('.fob-item-audit').textContent()).includes('Cadastro sintético de teste'));
@@ -149,7 +150,30 @@ const server=http.createServer((req,res)=>{
     delay=true;await page.locator('#fob-cards article').first().getByRole('button').click();await page.locator('#fob-items-close').click();await page.waitForTimeout(250);assert.equal(await page.locator('dialog[open]').count(),0);delay=false;
     fail=404;await page.reload();await page.locator('#fob-status').filter({hasText:'O módulo Comparativo FOB ainda não está disponível'}).waitFor();
     fail=0;await page.goto(`http://127.0.0.1:${server.address().port}/index.html#comparativo-fob`);await page.waitForURL('**/comparativo-fob.html');await ready();
+    // Todas as famílias: ordem do Excel e sobreposição do cabeçalho ao rolar nos dois eixos.
+    const expectedOrder=['ASA INTEIRA','COXINHA DA ASA','MEIO DA ASA','COXA SOBRECOXA','LEG QUARTER (CSCD)','SOBRECOXA','COXA','DORSO','PEITO','FILÉ DE PEITO','FRANGO PASSARINHO','MOELA','FÍGADO','CORAÇÃO','PESCOÇO','PÉS','SAMBIQUIRA','LINGUIÇA','FRANGO INTEIRO TEMPERADO','FRANGO INTEIRO','CARNE MECANICAMENTE SEPARADA (CMS)','DORSO E PELE A GRANEL','PELES (PEITO/COXAS)','SUBPRODUTOS'];
+    const orderedRows=[...expectedOrder,'FAMÍLIA NOVA'].map((familia,i)=>({...rows[i],familia}));
+    const grid=await context.newPage();grid.on('pageerror',error=>errors.push(error.message));
+    await grid.setViewportSize({width:1440,height:1000});
+    await grid.route('https://api-bi-granja.controladoriagb05.workers.dev/**',route=>route.fulfill({json:route.request().url().includes('/filtros')?{...options,familia:[...expectedOrder].reverse()}:summary([...orderedRows].reverse())}));
+    await grid.goto(`http://127.0.0.1:${server.address().port}/comparativo-fob.html`);await grid.locator('#fob-cards article').first().waitFor();
+    assert.deepEqual(await grid.locator('#fob-table tbody th button').allTextContents(),[...expectedOrder,'FAMÍLIA NOVA']);
+    assert.deepEqual((await grid.locator('#fob-table thead tr').nth(1).locator('th').allTextContents()).slice(0,4),['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Pendências']);
+    async function checkHeader(){
+      await grid.locator('.fob-table-scroll').scrollIntoViewIfNeeded();
+      await grid.locator('.fob-table-scroll').evaluate(e=>{e.scrollTop=300;e.scrollLeft=240;});
+      const result=await grid.evaluate(()=>{
+        const head=document.querySelector('#fob-table thead'),corner=head.querySelector('th'),rect=corner.getBoundingClientRect(),area=document.querySelector('.fob-table-scroll').getBoundingClientRect();
+        const over=document.elementFromPoint(rect.left+Math.min(rect.width/2,60),rect.top+rect.height/2);
+        return {text:corner.textContent,top:rect.top,area:area.top,height:rect.height,headHeight:head.getBoundingClientRect().height,visible:!!over?.closest('#fob-table thead')};
+      });
+      assert.equal(result.text,'Família');assert.ok(Math.abs(result.top-result.area)<=2,JSON.stringify(result));assert.ok(result.visible,JSON.stringify(result));assert.ok(result.height>=result.headHeight-2,JSON.stringify(result));
+    }
+    await checkHeader();await grid.screenshot({path:path.join(artifacts,'cabecalho-rolagem.png')});
+    await grid.locator('[data-theme-toggle]').click();await grid.setViewportSize({width:390,height:844});await checkHeader();
+    await grid.screenshot({path:path.join(artifacts,'cabecalho-mobile-rolagem.png')});
+    await grid.locator('[data-fob-mode=costs]').click();await checkHeader();await grid.close();
     assert.deepEqual(errors,[]);await context.close();
-    console.log('OK: dois HTMLs independentes, acesso direto e hash antigo, menu/ativo, filtros separados (rascunho e consulta), recarga/histórico, tema, relatório preservado, matriz/custos, itens/auditoria, CSV, paginação/ordenação, mobile, 503/404 e cancelamento. Nenhum backend/banco executado.');
+    console.log('OK: ordem de famílias/colunas, cabeçalho acima das células fixas em rolagem vertical/horizontal e mobile, diferenças na auditoria; dois HTMLs, menu/ativo, filtros separados, recarga/histórico, matriz/custos, itens, CSV, ordenação, 503/404 e cancelamento. Nenhum backend/banco executado.');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
 })().catch(error=>{console.error(error);process.exitCode=1;});

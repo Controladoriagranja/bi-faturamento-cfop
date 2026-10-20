@@ -6,7 +6,7 @@ Projeto independente em HTML/CSS/JavaScript. Reutiliza o cliente HTTP, token da 
 
 O frontend oficial tem duas páginas no mesmo projeto: [index.html](index.html), exclusivamente para Faturamento por Vendedor Pai, e [comparativo-fob.html](comparativo-fob.html), para o Comparativo PM FOB. Compartilham menu, tema, filtros e componentes visuais; os filtros de cada relatório são preservados separadamente ao retornar. O endereço antigo `#comparativo-fob` redireciona para o HTML próprio.
 
-A entrega do backend continua separada e não foi alterada pela reorganização: `artifacts/api_anderson_comparativo_fob.zip`. Instalação no Anderson, arquivos alterados, regras, testes e pendências: [docs/COMPARATIVO_FOB_ENTREGA.md](docs/COMPARATIVO_FOB_ENTREGA.md).
+A entrega do backend continua separada: `artifacts/api_anderson_comparativo_fob.zip`. Baseado no `api_zootecnico(1).zip` fornecido, o pacote adiciona somente `bi_generic/comparativo_fob/` e entrega `servico_zootecnico.py` para substituir, já com o registro aplicado. Não inclui pastas `fob/` ou `modules/`, arquivos de outros BIs, integrador, SQL ou Dockerfile. O Docker fornecido já copia `bi_generic` inteiro. Arquivos, regras, verificações e pendências: [docs/COMPARATIVO_FOB_ENTREGA.md](docs/COMPARATIVO_FOB_ENTREGA.md).
 
 O FOB não exige executar os SQLs de implantação do relatório antigo descritos abaixo. Usa as fontes já existentes, sem criar ou alterar banco. Nesta etapa o período comprovado é 01–04/10/2026 e os fretes sem confirmação permanecem pendentes.
 

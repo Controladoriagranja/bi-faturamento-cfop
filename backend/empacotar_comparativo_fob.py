@@ -1,97 +1,153 @@
-"""Gera apenas a extensão da API do Anderson; não executa a API nem consulta banco."""
+"""Pacote no padrão da API fornecida: uma pasta bi_generic/comparativo_fob e um registro."""
 import argparse
 import ast
 import hashlib
 import json
-import difflib
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from zipfile import ZipFile, ZIP_DEFLATED
-from fob.reference import WorkbookCatalog
-from fob.snapshot import export_snapshot
-from integrar_comparativo_fob import plan
 
 ROOT=Path(__file__).resolve().parents[1]
+PACKAGE='bi_generic/comparativo_fob'
+REGISTRATION=b'''# Comparativo PM FOB: mesma factory banco() e autenticacao da API existente.
+from bi_generic.comparativo_fob.routes import criar_router_comparativo_fob
+app.include_router(criar_router_comparativo_fob(banco))
+'''
 
 
-def main():
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--excel',type=Path,required=True)
-    parser.add_argument('--api-referencia',type=Path,default=Path.home()/'Downloads/api_zootecnico.zip')
-    parser.add_argument('--saida',type=Path,default=ROOT/'artifacts/api_anderson_comparativo_fob.zip')
-    args=parser.parse_args()
-    catalog=WorkbookCatalog(args.excel)
-    snapshot=json.dumps(export_snapshot(catalog),ensure_ascii=False,default=str,separators=(',',':')).encode('utf-8')
+def build(api_reference,snapshot):
+    """Somente montagem/análise de arquivos. Não importa nem inicia a aplicação."""
     files={}
-    for folder in ['modules/comparativo_fob','fob']:
-        for path in (ROOT/'backend'/folder).glob('*.py'):
-            if path.name=='__main__.py':continue
-            ast.parse(path.read_text(encoding='utf-8'),filename=str(path))
-            files[path.relative_to(ROOT/'backend').as_posix()]=path.read_bytes()
-    files['modules/comparativo_fob/data/referencia_excel.json']=snapshot
-    files['integrar_comparativo_fob.py']=(ROOT/'backend/integrar_comparativo_fob.py').read_bytes()
-    with TemporaryDirectory() as temporary:
-        with ZipFile(args.api_referencia) as reference:
-            for name in ('servico_zootecnico.py','Dockerfile.zootecnico'):
-                (Path(temporary)/name).write_bytes(reference.read('api_zootecnico/'+name))
-        changes=plan(temporary)
-        patch=''.join(''.join(difflib.unified_diff(before.decode('utf-8-sig').splitlines(keepends=True),
-            after.decode('utf-8-sig').splitlines(keepends=True),fromfile=path.name,tofile=path.name)) for path,before,after in changes)
-        files['INTEGRACAO-ANDERSON.patch']=patch.encode('utf-8')
-        integration=[dict(arquivo=path.name,sha256_base=hashlib.sha256(before).hexdigest(),
-            mudanca='Acrescentar registro isolado FOB' if path.suffix=='.py' else 'Acrescentar COPY de fob e modules/comparativo_fob') for path,before,_ in changes]
-    manifest=dict(pacote='api_anderson_comparativo_fob.zip',data='2026-10-19',
-        destino='Raiz da API que contém servico_zootecnico.py e Dockerfile.zootecnico. Não copiar para assets/ do frontend.',
-        api_alvo='API fornecida api_zootecnico.zip + atualização pontual bi_generic/ do GPD; compatível também com descoberta ModuleSpec / RuntimeContext / RouteSet',
-        api_referencia_sha256=hashlib.sha256(args.api_referencia.read_bytes()).hexdigest(),
-        arquivos_compartilhados_modificados=[],sql_ddl_necessario=False,
-        arquivos_compartilhados_alterados_pelo_integrador=integration,
-        origem_excel_sha256=catalog.sha256,
-        arquivos=[dict(caminho=name,acao='Adicionar (ou substituir somente esta extensão FOB, se já instalada)',sha256=hashlib.sha256(data).hexdigest()) for name,data in sorted(files.items())])
-    readme='''COMPARATIVO PM FOB — INTEGRAÇÃO NA API DO ANDERSON
+    # Mantém o motor já validado. Só a localização do pacote muda.
+    for name in ('calculator','reference','repository','snapshot','workbook'):
+        files[f'{PACKAGE}/{name}.py']=(ROOT/f'backend/fob/{name}.py').read_bytes()
+    for name in ('aggregation','config','service'):
+        source=(ROOT/f'backend/modules/comparativo_fob/{name}.py').read_text(encoding='utf-8')
+        source=source.replace('from fob.calculator import ','from .calculator import ')
+        source=source.replace('from fob.repository import ','from .repository import ')
+        source=source.replace('from fob.snapshot import ','from .snapshot import ')
+        source=source.replace("Path(__file__).resolve().parent/'data'/'referencia_excel.json'","Path(__file__).with_name('referencia_excel.json')")
+        files[f'{PACKAGE}/{name}.py']=source.encode('utf-8')
+    routes=(ROOT/'backend/modules/comparativo_fob/routes.py').read_text(encoding='utf-8')
+    routes=routes.split('\ndef build_routes(',1)[0].rstrip()+'''
 
-INSTALAÇÃO NA API FORNECIDA
-1. Copie os arquivos deste ZIP para a raiz da API existente (ao lado de servico_zootecnico.py), respeitando seus caminhos. Preserve os demais módulos. Não substitua a pasta modules inteira.
-2. Nessa raiz, execute: python integrar_comparativo_fob.py
-   O comando apenas mostra o diff; não inicia a API nem acessa banco. O patch INTEGRACAO-ANDERSON.patch mostra antecipadamente a alteração exata contra o api_zootecnico.zip fornecido. A atualização backend_atualizacao_gpd_por_fase.zip contém somente bi_generic/{registry,router,gpd_fases}.py; estes arquivos não são tocados pelo pacote FOB.
-3. Aplique: python integrar_comparativo_fob.py --aplicar
-   Na API fornecida, acrescenta somente o registro das rotas em servico_zootecnico.py e dois COPY no Dockerfile.zootecnico. Cria backup *.antes_comparativo_fob.bak. O restante dos bytes dos arquivos é preservado; não substitui os serviços de outros BIs. Repetir não duplica a integração.
-   Se a API já tiver core/bootstrap.py e descoberta de módulos, o integrador detecta esse padrão: não toca no serviço principal, e inclui somente os COPY ainda necessários. O MODULE fornece RouteSet/RuntimeContext sem mudar core/.
-4. Reconstrua a imagem e recrie o container pelo procedimento já usado. Preserve variáveis de ambiente, portas, volumes e credenciais.
-5. Confira o encaminhamento e a permissão das três rotas GET abaixo no Worker. A autorização continua no middleware existente e no Portal; o frontend mantém o Bearer, e o Worker deve manter a tradução da autenticação interna já usada. O código do Worker não foi fornecido nem alterado.
 
-ROTAS
+def criar_router_comparativo_fob(banco):
+    from types import SimpleNamespace
+    from .service import build_service
+    return create_router(build_service(SimpleNamespace(banco=banco)))
+'''
+    files[f'{PACKAGE}/routes.py']=routes.encode('utf-8')
+    files[f'{PACKAGE}/__init__.py']=b'"""Comparativo PM FOB integrado a API existente por factory banco()."""\n'
+    files[f'{PACKAGE}/referencia_excel.json']=snapshot
+    with ZipFile(api_reference) as baseline:
+        original=baseline.read('api_zootecnico/servico_zootecnico.py')
+        docker=baseline.read('api_zootecnico/Dockerfile.zootecnico')
+        assert 'api_zootecnico/bi_generic/__init__.py' in baseline.namelist()
+        if b'COPY API/api_zootecnico/bi_generic ./bi_generic' not in docker:
+            raise ValueError('Dockerfile fornecido nao copia bi_generic como esperado; revisar a base antes de empacotar.')
+    if b'comparativo_fob' in original:
+        raise ValueError('A base ja contem registro FOB; nao acrescentar registro duplicado automaticamente.')
+    nl=b'\r\r\n' if b'\r\r\n' in original else b'\r\n' if b'\r\n' in original else b'\n'
+    files['servico_zootecnico.py']=original+nl+nl+REGISTRATION.replace(b'\n',nl)
+    for name,data in files.items():
+        if name.endswith('.py'):ast.parse(data.decode('utf-8-sig'),filename=name)
+    reference=json.loads(snapshot)
+    manifest=dict(pacote='api_anderson_comparativo_fob.zip',data='2026-10-20',
+        destino='API/api_zootecnico (pasta que ja contem servico_zootecnico.py e bi_generic/)',
+        api_referencia_arquivo=Path(api_reference).name,
+        api_referencia_sha256=hashlib.sha256(Path(api_reference).read_bytes()).hexdigest(),
+        modo_instalacao='Copiar/mesclar uma pasta e substituir servico_zootecnico.py; registro ja aplicado.',
+        pastas_novas=[PACKAGE],scripts_pos_copia=[],dockerfile_incluido=False,sql_ddl_necessario=False,
+        origem_excel_sha256=reference['sha256'],sha256_catalogo=hashlib.sha256(snapshot).hexdigest(),
+        arquivos_compartilhados_modificados=[dict(arquivo='servico_zootecnico.py',
+            sha256_base=hashlib.sha256(original).hexdigest(),
+            sha256_entregue=hashlib.sha256(files['servico_zootecnico.py']).hexdigest(),
+            mudanca='Conteudo original integral preservado; acrescentados comentario e duas linhas de importacao/registro FOB ao final.')],
+        nao_substituir=['bi_generic/router.py','bi_generic/registry.py','bi_generic/faturamento_nf/',
+            'bi_generic/gpd_fases.py','Dockerfile.zootecnico','core/','config.py','requirements.txt'],
+        rotas=['/api/comercial/comparativo-fob/'+operation for operation in ('filtros','resumo','detalhes')])
+    readme='''COMPARATIVO PM FOB — UMA PASTA NOVA, NO PADRÃO DA API FORNECIDA
+
+ONDE COLOCAR
+Na mesma pasta da sua API que já contém servico_zootecnico.py e bi_generic/.
+No contexto do Dockerfile fornecido, essa pasta é API/api_zootecnico.
+
+O QUE COPIAR / SUBSTITUIR
+1. Mescle a pasta bi_generic deste ZIP com a bi_generic existente.
+   Isso adiciona SOMENTE bi_generic/comparativo_fob/, com todos os arquivos do FOB e do comparativo de preços praticado/FOB, incluindo o catálogo JSON.
+   Não apague nem substitua a pasta bi_generic inteira.
+2. Substitua servico_zootecnico.py pelo arquivo deste ZIP.
+   Base: api_zootecnico(1).zip fornecido. O arquivo original é preservado integralmente; somente o registro do Comparativo PM FOB foi acrescentado ao final.
+3. Reconstrua seu Docker como já faz. Não há script Python, integrador, patch, SQL ou cadastro para executar.
+
+ESTRUTURA FINAL
+API/api_zootecnico/
+  servico_zootecnico.py             SUBSTITUIR
+  bi_generic/
+    comparativo_fob/               ADICIONAR (única pasta nova)
+      __init__.py
+      aggregation.py
+      calculator.py
+      config.py
+      reference.py
+      referencia_excel.json
+      repository.py
+      routes.py
+      service.py
+      snapshot.py
+      workbook.py
+
+O Dockerfile fornecido já contém COPY API/api_zootecnico/bi_generic ./bi_generic, que inclui automaticamente a nova pasta. Nenhum Dockerfile é entregue ou alterado. Não copie as pastas fob/ ou modules/ dos pacotes anteriores; este pacote substitui aquela organização.
+
+Não substitui router.py, registry.py, faturamento_nf/, gpd_fases.py, Suprimentos, PCP, autenticação, requisitos ou credenciais. MANIFESTO.json e este LEIA-ME são apenas documentação, não precisam ir para a imagem.
+
+O QUE ATENDE
+As três rotas já usadas pelo frontend oficial permanecem:
 GET /api/comercial/comparativo-fob/filtros
 GET /api/comercial/comparativo-fob/resumo
 GET /api/comercial/comparativo-fob/detalhes
 
-Estas rotas têm prefixo próprio /api/comercial/comparativo-fob e não interceptam /api/bi/{bi}/... do legado. O integrador reaproveita o prefixo dos COPY existentes (API/api_zootecnico no arquivo fornecido). Não cria aplicação, porta, autenticação nem container adicional. O pacote não sobrescreve versões antigas dos arquivos compartilhados: somente o integrador acrescenta os trechos auditáveis.
+Preço praticado, componentes de despesas, preço FOB, valor FOB, médias por família/canal, pendências e auditoria por item são os já implementados. Nenhuma regra ou valor de referência foi recalculado para este empacotamento. O catálogo do pacote anterior foi mantido byte a byte. O relatório faturamento-nf continua com o código fornecido na sua API.
 
-BANCO / LIMITES
-Nenhum SQL de criação ou alteração é necessário. O usuário da API precisa de leitura em comercial.vw_faturamento_cfop_filtrado e comercial.faturamento_cfop. A leitura está limitada a 01–04/10/2026 e até 5.000 itens. Um SELECT pontual tenta conciliar a NF 806684 na tabela bruta; se ausente/indisponível, somente o item autorizado da linha 422 fica provisório e identificado. Outros itens ausentes são pendências, sem inventar peso/faturamento na origem.
+LIMITES MANTIDOS
+Cadastros comprovados somente para 01–04/10/2026. Fretes manuais não confirmados continuam pendentes; a NF 806684 pode aparecer provisória até conciliação. Não há CRUD ou gravação no PostgreSQL.
 
-As consultas são somente SELECT e usam o contexto somente leitura da API. O cache em memória dura 45 segundos e não grava dados. As opções iniciais e os cálculos permanecem restritos ao período comprovado; outros períodos são recusados até validar novos cadastros/perímetro. Não há CRUD nem preenchimento manual persistido nesta entrega.
-
-FRETE E AUDITORIA
-Frete tipo 1 nulo/zero e frete aplicável de Januária ficam pendentes; não são somados como FOB concluído. O valor salvo no Excel aparece somente como referência. O snapshot da comissão é do arquivo original, não uma folha recalculada. /detalhes expõe componentes, origens, fórmulas, diferenças de entrada e flag provisória.
-
-VALIDAÇÃO PEQUENA APÓS INSTALAR
-Abra o frontend oficial, escolha Comparativo PM FOB e consulte 01–04/10/2026. Confira os três pesos e a referência Excel. Varejo pode continuar pendente por frete. Abra uma família e “Ver cálculo”. Confira o relatório antigo e as rotas existentes. O backend não foi iniciado nesta máquina e não houve consulta/deploy em produção nesta entrega.
+VALIDAÇÃO
+Verificações pequenas de sintaxe, imports internos, integridade do pacote e cálculos puros. Nenhuma API, carga, job, consulta ao banco ou deploy foi executado nesta máquina. O acesso pelo endereço público depende do Worker encaminhar/autorizar as rotas acima; o código do Worker não faz parte do ZIP fornecido e não foi alterado.
 '''
-    manifest['ajustes_explicitos_integracao']=[
-        dict(arquivo='servico_zootecnico.py',condicao='API fornecida, sem descoberta modular',mudanca='Acrescentar bloco de registro FOB; integrador preserva conteúdo e gera backup. Ver patch.'),
-        dict(arquivo='Dockerfile.zootecnico',condicao='COPY ainda ausente',mudanca='Acrescentar COPY de fob e modules/comparativo_fob, mantendo o contexto e todas as linhas existentes.')]
     files['LEIA-ME-INTEGRACAO.txt']=readme.encode('utf-8')
-    manifest['arquivos']=[dict(caminho=name,acao='Adicionar (ou substituir somente esta extensão FOB, se já instalada)',
+    manifest['arquivos']=[dict(caminho=name,acao='SUBSTITUIR' if name=='servico_zootecnico.py' else 'DOCUMENTACAO' if '/' not in name else 'ADICIONAR / ATUALIZAR SOMENTE ESTE MODULO',
         sha256=hashlib.sha256(data).hexdigest()) for name,data in sorted(files.items())]
     files['MANIFESTO.json']=json.dumps(manifest,ensure_ascii=False,indent=2).encode('utf-8')
+    return files,manifest
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    sources=parser.add_mutually_exclusive_group()
+    sources.add_argument('--excel',type=Path)
+    sources.add_argument('--catalogo-zip',type=Path)
+    parser.add_argument('--api-referencia',type=Path,default=Path.home()/'Downloads/api_zootecnico(1).zip')
+    parser.add_argument('--saida',type=Path,default=ROOT/'artifacts/api_anderson_comparativo_fob.zip')
+    args=parser.parse_args()
+    if args.excel:
+        from fob.reference import WorkbookCatalog
+        from fob.snapshot import export_snapshot
+        snapshot=json.dumps(export_snapshot(WorkbookCatalog(args.excel)),ensure_ascii=False,default=str,separators=(',',':')).encode('utf-8')
+    else:
+        with ZipFile(args.catalogo_zip or ROOT/'artifacts/api_anderson_comparativo_fob.zip') as previous:
+            member=f'{PACKAGE}/referencia_excel.json'
+            if member not in previous.namelist():member='modules/comparativo_fob/data/referencia_excel.json'
+            snapshot=previous.read(member)
+    files,manifest=build(args.api_referencia,snapshot)
     args.saida.parent.mkdir(parents=True,exist_ok=True)
     with ZipFile(args.saida,'w',ZIP_DEFLATED,compresslevel=9) as archive:
         for name,data in sorted(files.items()):archive.writestr(name,data)
     with ZipFile(args.saida) as archive:
         assert archive.testzip() is None
-        for entry in manifest['arquivos']:assert hashlib.sha256(archive.read(entry['caminho'])).hexdigest()==entry['sha256']
-    print(json.dumps(dict(zip=str(args.saida),arquivos=len(files),bytes=args.saida.stat().st_size,sha256_excel=catalog.sha256),ensure_ascii=False))
+        for row in manifest['arquivos']:assert hashlib.sha256(archive.read(row['caminho'])).hexdigest()==row['sha256']
+    print(json.dumps(dict(zip=str(args.saida),arquivos=len(files),bytes=args.saida.stat().st_size,
+        pasta_nova=PACKAGE,substituir=['servico_zootecnico.py'],sha256_catalogo=manifest['sha256_catalogo']),ensure_ascii=False))
 
 
 if __name__=='__main__':main()

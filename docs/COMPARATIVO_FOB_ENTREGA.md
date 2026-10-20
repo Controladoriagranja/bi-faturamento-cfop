@@ -23,7 +23,18 @@ Os dados de teste e a planilha não estão nos assets públicos. Sem a extensão
 | `assets/js/fob.js` | Inicialização independente e restauração de filtros/preferências; matriz, despesas, itens, auditoria e CSV reaproveitados |
 | `assets/css/fob.css` | Estilos exclusivos do comparativo, responsividade e tema escuro reaproveitados |
 
-O componente de filtros, cliente HTTP, tema, tipografia Geist e estilos atuais são compartilhados entre as páginas. Cada HTML carrega somente o script do seu relatório; os componentes de detalhamento também permanecem separados. Nenhum motor, regra comercial, valor de referência, endpoint ou arquivo de backend foi modificado na separação dos HTMLs. O ZIP do Anderson permanece exatamente igual.
+O componente de filtros, cliente HTTP, tema, tipografia Geist e estilos atuais são compartilhados entre as páginas. Cada HTML carrega somente o script do seu relatório; os componentes de detalhamento também permanecem separados. Nenhum motor, regra comercial, valor de referência ou endpoint foi modificado na separação dos HTMLs. Em 20/10, o pacote do Anderson foi reorganizado no padrão do ZIP fornecido: uma única pasta nova dentro de `bi_generic`, sem integrador e sem Dockerfile.
+
+### Cabeçalho, ordem e interpretação dos avisos
+
+O cabeçalho da matriz tem prioridade sobre as células fixas de Família durante a rolagem vertical e horizontal. A célula Família cobre as duas linhas de cabeçalho e permanece alinhada, em ambos os temas e no celular. A apresentação segue as famílias de `FaturamentoANeRA!AK860:AK889`, com Peso → Faturamento FOB → PM FOB em cada canal, mantendo a coluna de pendências. Composição de custos, filtro de famílias e resumo CSV usam a mesma sequência. Famílias novas sem posição na referência vêm ao final, sem descartar registros.
+
+Os avisos medem situações diferentes e podem se sobrepor:
+
+- **Pendente:** falta um componente necessário. No CSV analisado havia 335 itens: 330 de Januária com frete manual ainda não confirmado e 5 com tipo de frete 1 sem valor na origem (2 na unidade 111 e 3 na 180), totalizando 28.185 kg. Isso impede fechar o Varejo; o parcial não é o total.
+- **Diferença de entrada/origem:** os dados usados são comparados ao Excel, incluindo preço praticado, valor faturado e frete de origem; ausência ou origem provisória também pode gerar o aviso. No CSV anterior eram 333 diferenças, todas de `frete_kg`. Dessas, 328 já tinham FOB calculado, sem diferença absoluta de um centavo ou mais contra o Excel; 5 estavam pendentes. O frete aplicado pode vir de tabelas e fórmulas e não ser igual ao frete bruto. Portanto uma diferença de entrada não comprova erro no resultado FOB. A contagem de 334 no print atual depende da origem consultada agora e não identifica por si só qual item adicional mudou.
+
+A tela inclui uma explicação expansível e destaca “Diferença de entrada” por item. Abra uma família/canal e “Ver cálculo” para conferir origem, referência e fórmula. Valide qual dado está correto antes de corrigir a fonte ou confirmar o frete. Não ajuste valores apenas para coincidir com o Excel. Os valores aprovados de frete manual de Januária ainda precisam ser conectados à API por item; não há campo de preenchimento nem persistência nessa tela. Alterar somente o frete bruto não confirma automaticamente o frete manual de Januária. Esta entrega visual não altera o backend nem o ZIP do Anderson.
 
 ## ZIP para o Anderson
 
@@ -31,23 +42,31 @@ Arquivo: `artifacts/api_anderson_comparativo_fob.zip`. Seus caminhos são relati
 
 Conteúdo necessário:
 
-- `modules/comparativo_fob/{__init__,config,routes,service,aggregation}.py`: extensão, consulta limitada, consolidação e rotas.
-- `modules/comparativo_fob/data/referencia_excel.json`: catálogo inicial privado, incluindo perímetro por item, valores de referência, fórmulas e auxiliares extraídos do Excel.
-- `fob/{__init__,calculator,reference,repository,snapshot,workbook}.py`: biblioteca reutilizável do cálculo e leitura do catálogo.
-- `integrar_comparativo_fob.py`: integrador pontual, com diff antes da aplicação, backup e execução idempotente.
-- `MANIFESTO.json`, `INTEGRACAO-ANDERSON.patch` e `LEIA-ME-INTEGRACAO.txt`: hashes, arquivos novos, alterações compartilhadas e instruções.
+- `bi_generic/comparativo_fob/`: **única pasta nova**, reunindo rotas, serviço, agregações, configuração e motor já validado, com imports relativos entre seus arquivos.
+- `bi_generic/comparativo_fob/referencia_excel.json`: catálogo inicial privado diretamente na mesma pasta, sem subpasta adicional. Inclui perímetro, referências, fórmulas e auxiliares do Excel.
+- `servico_zootecnico.py`: arquivo completo da API fornecida, com o registro FOB já aplicado.
+- `MANIFESTO.json` e `LEIA-ME-INTEGRACAO.txt`: documentação dos arquivos, hashes e instruções. Não precisam ir para a imagem.
 
-A API fornecida em `api_zootecnico.zip` é anterior à descoberta por `core/bootstrap.py`. A atualização `backend_atualizacao_gpd_por_fase.zip` contém apenas `bi_generic/registry.py`, `router.py` e `gpd_fases.py`. Esses três arquivos permanecem preservados: o módulo FOB usa um prefixo independente, sem interferir no roteador genérico. O contrato também suporta a versão modular já identificada em `api-db`, sem tornar essa versão uma dependência de instalação.
+A base do arquivo completo é a cópia fornecida mais recente, `api_zootecnico(1).zip`, que já registra Suprimentos. A atualização `backend_atualizacao_gpd_por_fase.zip` contém apenas `bi_generic/registry.py`, `router.py` e `gpd_fases.py`. Esses três arquivos não estão no ZIP FOB e permanecem preservados na máquina. O módulo FOB usa um prefixo independente, sem interferir no roteador genérico.
 
-**Arquivos compartilhados que mudam na API fornecida:** `servico_zootecnico.py`, para acrescentar quatro linhas de importação/registro das novas rotas; e `Dockerfile.zootecnico`, para acrescentar dois COPY. O ZIP não inclui cópias completas desses arquivos para sobrescrever atualizações. O integrador preserva os bytes existentes, mostra o diff e cria os backups antes de acrescentar os trechos. Se detectar a API modular, preserva o serviço principal e acrescenta somente os COPY ainda ausentes. Não modifica `core/`, `config.py`, registro de outros BIs, requisitos ou credenciais.
+**Único arquivo a substituir:** `servico_zootecnico.py`. O conteúdo de `api_zootecnico(1).zip` é preservado byte a byte, acrescentando ao final somente um comentário e duas linhas:
+
+```python
+from bi_generic.comparativo_fob.routes import criar_router_comparativo_fob
+app.include_router(criar_router_comparativo_fob(banco))
+```
+
+O manifesto contém hashes de origem e entrega. Não há script de instalação, patch para aplicar, Dockerfile, arquivos de Suprimentos ou cópias de outros BIs no pacote. O catálogo do ZIP anterior é reutilizado byte a byte; calculator/reference/repository/snapshot/workbook também são preservados. Os demais ajustes são apenas imports relativos, localização do catálogo e factory de registro, sem mudança de fórmulas, cadastros ou valores de referência.
 
 Passos no Anderson:
 
-1. Copiar o conteúdo do ZIP para a raiz da API, mesclando as pastas sem remover módulos existentes.
-2. Nessa raiz, rodar `python integrar_comparativo_fob.py` para conferir o diff.
-3. Rodar `python integrar_comparativo_fob.py --aplicar` para acrescentar os trechos e criar os backups `*.antes_comparativo_fob.bak`.
-4. Reconstruir a imagem e recriar o container pelo procedimento habitual.
-5. Conferir o encaminhamento e a permissão no Worker para os três GET `/api/comercial/comparativo-fob/filtros`, `/resumo` e `/detalhes`. O código do Worker não foi fornecido; nenhuma configuração ou publicação foi feita nele. A autenticação continua a mesma: Bearer do Portal para o Worker e autenticação interna existente para a API.
+1. Na pasta `API/api_zootecnico`, onde já existem `servico_zootecnico.py` e `bi_generic/`, mesclar a pasta `bi_generic/` do ZIP com a existente. Isso adiciona somente `bi_generic/comparativo_fob/`. **Não remover nem substituir `bi_generic/` inteira.**
+2. Substituir somente `servico_zootecnico.py` pelo arquivo do ZIP. O serviço já está integrado; não executar Python, integrador ou SQL.
+3. Reconstruir o Docker como já faz. O `Dockerfile.zootecnico` fornecido já contém `COPY API/api_zootecnico/bi_generic ./bi_generic`, que inclui a nova pasta e seu JSON automaticamente. Nenhum Dockerfile é entregue ou alterado.
+
+Este ZIP substitui a organização dos pacotes anteriores: não copiar `fob/` nem `modules/`. Não substituir `bi_generic/router.py`, `registry.py`, `gpd_fases.py` ou `faturamento_nf/`; os arquivos dessas áreas não estão neste pacote.
+
+O código do Worker não foi fornecido nem alterado. O acesso público continua dependendo do encaminhamento e da permissão dos três GET `/api/comercial/comparativo-fob/filtros`, `/resumo` e `/detalhes`. A autenticação continua a mesma: Bearer do Portal para o Worker e autenticação interna existente para a API.
 
 Nenhum SQL de criação ou alteração é necessário. As fontes continuam sendo `comercial.vw_faturamento_cfop_filtrado` e `comercial.faturamento_cfop`, com leitura pelo `banco()` existente. A consulta tem período restrito, limite de 5.000 linhas (exceder gera erro, sem truncar totais) e cache de 45 segundos. A consulta pontual da NF tem limite de 100 itens. Não há extratores, cargas ou gravações no módulo.
 
@@ -90,5 +109,5 @@ Após instalar, validar a sessão real do Portal/Worker, as permissões SELECT, 
 Para regenerar o pacote, sem iniciar API nem consultar banco:
 
 ```powershell
-python backend/empacotar_comparativo_fob.py --excel 'CAMINHO/AnalisePreco01a04.xlsx' --api-referencia 'CAMINHO/api_zootecnico.zip'
+python backend/empacotar_comparativo_fob.py --api-referencia 'CAMINHO/api_zootecnico(1).zip'
 ```

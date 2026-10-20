@@ -36,6 +36,13 @@
     </form>
     <p id="fob-status" class="status" role="status" aria-live="polite">Abra o comparativo para consultar os dados.</p>
     <div id="fob-alert" class="fob-alert" hidden></div>
+    <details class="fob-checks filter-card">
+      <summary>Por que existem pendências e valores para conferir?</summary>
+      <p><strong>Pendente:</strong> falta um dado necessário para fechar o FOB. Frete tipo 1 sem valor e frete aplicável de Januária exigem confirmação manual por item. O valor salvo no Excel serve de referência, mas não confirma esse preenchimento. O parcial concluído não substitui o total.</p>
+      <p><strong>Diferença de entrada ou origem:</strong> algum dado diverge do Excel, está ausente ou tem origem provisória. Isso não significa automaticamente erro no FOB. Um item pode ter diferença e também estar pendente; as contagens não devem ser somadas.</p>
+      <p><strong>Como conferir:</strong> abra os itens da família ou do canal e clique em <strong>Ver cálculo</strong>. Compare os valores de origem e do Excel, a fórmula e a origem do frete. Valide qual dado está correto antes de corrigir a fonte ou confirmar o valor manual.</p>
+      <p>O preenchimento de frete manual ainda não está disponível nesta tela. Para fechar as pendências de Januária, os valores confirmados precisam ser integrados ao cálculo por item. Uma diferença legítima entre a origem atual e a planilha pode continuar indicada mesmo após o FOB estar calculado.</p>
+    </details>
     <div id="fob-cards" class="fob-cards" aria-label="Totalizadores por canal"></div>
     <section class="report-card fob-report" aria-labelledby="fob-table-title">
       <header class="report-header"><h2 id="fob-table-title">Família × Canal Venda<span>Peso, preço médio FOB e resultado por canal</span></h2><div class="period"><span>PERÍODO CONSULTADO</span><strong id="fob-period">—</strong></div></header>
