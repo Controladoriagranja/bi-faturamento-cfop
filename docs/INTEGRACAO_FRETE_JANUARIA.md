@@ -1,5 +1,7 @@
 # Frete manual e Januária — preparação local de 21/10/2026
 
+> Consolidação final: [roteiro e verificação do pacote completo](../artifacts/LEIA-ME-CONSOLIDACAO.md). A tabela mensal já foi criada em produção: NÃO reaplicar `005_custo_mensal_januaria.sql`. O usuário definiu outubro/2026 em **0.6127658079 R$/kg**; a inclusão real ainda deve ocorrer posteriormente pela API/tela autenticada, sem fallback numérico embutido no código. O ZIP completo separado é `artifacts/api_zootecnico_frete_fob_consolidado.zip`. As referências abaixo à preparação sem ZIP descrevem a etapa anterior.
+
 Implementação preparada para uma única integração futura. Não houve acesso ao servidor, SQL de produção, Docker, deploy ou commit. Nenhum ZIP foi criado ou sobrescrito. O módulo pronto está em `artifacts/integracao_fob/bi_generic/comparativo_fob/`; ele contém apenas o módulo FOB, com imports relativos e o catálogo original preservado. Não contém uma cópia do serviço principal nem de outros BIs.
 
 ## Regras implementadas

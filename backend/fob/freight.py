@@ -38,7 +38,7 @@ def monthly_rate(day, records):
     value = decimal(record.get('custo_kg'))
     if value is None or value < 0:
         raise ValueError('Custo mensal inválido na origem.')
-    inputs.update(versao=record['versao'],atualizado_por=record.get('atualizado_por'),
+    inputs.update(custo_kg=value,versao=record['versao'],atualizado_por=record.get('atualizado_por'),
                   atualizado_em=record.get('atualizado_em'),provisorio=source != requested)
     return Rate(value, MONTHLY_TABLE, 'custo mensal substitui todo o frete da unidade 102',
                 'mensal_provisorio' if source != requested else 'mensal', inputs)

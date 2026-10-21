@@ -50,7 +50,7 @@ def query_costs(conn,requested,page,size):
     rows=conn.execute('SELECT * FROM '+MONTHLY_TABLE+' ORDER BY competencia DESC LIMIT %s OFFSET %s',
                       [size+1,(page-1)*size]).fetchall()
     return public(dict(competencia=requested.strftime('%Y-%m'),custo_proprio=own,
-        custo_aplicado=dict(custo_kg=applied.value,status=applied.status,origem=applied.origin,**applied.inputs),
+        custo_aplicado=dict(applied.inputs,custo_kg=applied.value,status=applied.status,origem=applied.origin),
         custos=rows[:size],pagina=page,tem_proxima=len(rows)>size))
 
 
