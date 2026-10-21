@@ -5,11 +5,10 @@ from decimal import Decimal
 from functools import lru_cache
 import logging
 from threading import RLock
-from time import monotonic
 
 from fastapi import HTTPException
 from fob.calculator import calculate_item,code,decimal,item_key
-from fob.repository import read_invoice
+from fob.repository import read_invoice,read_freight_overrides
 from fob.snapshot import SnapshotCatalog
 from .aggregation import aggregate,public,order_items
 from .config import CATALOG_PATH,CHANNELS,CONFIG,COSTS,UNITS
@@ -24,17 +23,20 @@ def load_catalog():return SnapshotCatalog(CATALOG_PATH)
 
 class ComparativoFOBService:
     def __init__(self,context):
-        self.context=context;self._cache=None;self._lock=RLock()
+        self.context=context;self._lock=RLock()
 
     def _read(self):
         with self._lock:
-            if self._cache and monotonic()-self._cache[0]<CONFIG['cache_segundos']:return self._cache[1]
             catalog=load_catalog();start,end=(date.fromisoformat(d) for d in catalog.period)
             with self.context.banco() as conn:
                 rows=conn.execute('''SELECT * FROM comercial.vw_faturamento_cfop_filtrado
                     WHERE data >= %s AND data < %s ORDER BY id LIMIT %s''',
                     [start,end+timedelta(days=1),CONFIG['max_itens']+1]).fetchall()
-            if len(rows)>CONFIG['max_itens']:raise HTTPException(422,'Período excede o limite desta primeira entrega; consulta não será truncada.')
+                if len(rows)>CONFIG['max_itens']:raise HTTPException(422,'Período excede o limite desta primeira entrega; consulta não será truncada.')
+                try:overrides=read_freight_overrides(conn,rows)
+                except ValueError as error:raise HTTPException(409,str(error)) from None
+                except Exception:
+                    raise HTTPException(503,'Não foi possível consultar os cadastros de frete/custo mensal.') from None
             indexed={};excluded=0
             for row in rows:
                 row={**row,'_source':'comercial.vw_faturamento_cfop_filtrado'}
@@ -69,7 +71,9 @@ class ComparativoFOBService:
                         peso=None,origem_excel=ref.origin,valor_fob=None,preco_fob_kg=None,
                         componentes={},pendencias=['Registro de referência não encontrado na origem'],provisorio=False)
                 else:
-                    row=calculate_item(item,catalog)
+                    override,warning=overrides.resolve(item)
+                    row=calculate_item(item,catalog,freight_override=override)
+                    if warning:row['avisos_frete']=[warning]
                     row['provisorio']=bool(item.get('_provisional'))
                     row['divergencias_entrada']={}
                     for field in ('preco_praticado','valor_total_faturado','frete_kg'):
@@ -85,8 +89,9 @@ class ComparativoFOBService:
             payload=dict(rows=result,contexto=dict(periodo_disponivel=catalog.period,sha256_excel=catalog.sha256,
                 origem='PostgreSQL com cadastros de referência do Excel',consulta_nf_806684=raw_status,
                 linhas_fora_perimetro=excluded,limite_itens=CONFIG['max_itens'],
-                observacao='Cadastro válido apenas de 01 a 04/10/2026. Referência Excel não confirma frete manual.'))
-            self._cache=(monotonic(),payload)
+                observacao='Despesas Excel de 01–04/10/2026; frete manual validado e custo mensal 102 têm precedência. '
+                    'Januária sem competência própria usa outubro/2026; sem outubro, permanece pendente.',
+                cache_frete_segundos=0))
             return payload
 
     def execute(self,operation,request):

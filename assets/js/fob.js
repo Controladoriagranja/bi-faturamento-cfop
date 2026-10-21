@@ -172,6 +172,7 @@
     source.append(node('code',`${item.formula_preco_fob||'preco_praticado - soma(componentes/kg)'}\nPraticado/kg: ${item.preco_praticado_kg??'pendente'}\nFOB/kg: ${item.preco_fob_kg??'pendente'}\n${item.formula_valor_fob||'peso * preco_fob_kg'}\nPeso: ${item.peso??'ausente'} · Valor FOB: ${item.valor_fob??'pendente'}`));
     if(item.provisorio)source.append(node('p','Origem provisória: NF ainda não conciliada.'));
     if(item.pendencias?.length)source.append(node('p','Pendências: '+item.pendencias.join(', ')));
+    if(item.avisos_frete?.length)source.append(node('p','Conferir frete: '+item.avisos_frete.join(', ')));
     for(const [field,diff] of Object.entries(item.divergencias_entrada||{}))source.append(node('p',`${field}: origem ${diff.origem??'ausente'} · Excel ${diff.excel??'ausente'}`));
     grid.append(source);
     for(const [key,c] of Object.entries(item.componentes||{})){

@@ -58,7 +58,7 @@ def combine(price, weight, components):
     return price_fob, weight * price_fob
 
 
-def calculate_item(item, catalog: Catalog, manual_freight: ManualFreight | None = None):
+def calculate_item(item, catalog: Catalog, manual_freight: ManualFreight | None = None, *, freight_override: Rate | None = None):
     """Sem arredondamento intermediário; pendência impede FOB numérico do item."""
     with localcontext() as context:
         context.prec = 38
@@ -86,12 +86,17 @@ def calculate_item(item, catalog: Catalog, manual_freight: ManualFreight | None 
             raw_freight = decimal(item.get('frete_kg'))
             freight_type = code(item.get('frete'))
             unit = code(item.get('unidade_documento'))
-            needs_manual = (freight_type == '1' and raw_freight in (None, ZERO)) or (unit == '102' and freight_type not in ('2','3','4','5','9'))
-            if needs_manual:
-                if manual_freight is None:
-                    freight = Rate(None, 'Preenchimento manual não informado', 'frete tipo 1 sem valor ou Januária', 'pendente_manual')
-                else:
-                    freight = Rate(decimal(manual_freight.value), manual_freight.origin, 'valor manual explícito por item', 'manual_informado')
+            needs_manual = freight_type == '1' and raw_freight in (None, ZERO)
+            if unit == '102':
+                # Todos os tipos: custo mensal tem precedência absoluta sobre NF/Excel.
+                freight = freight_override if freight_override and freight_override.status in ('mensal','mensal_provisorio','pendente_custo_mensal') else Rate(
+                    None,'comercial.custo_mensal_januaria','competência da emissão; fallback outubro/2026','pendente_custo_mensal')
+            elif freight_override is not None:
+                freight = freight_override
+            elif manual_freight is not None:
+                freight = Rate(decimal(manual_freight.value), manual_freight.origin, 'valor manual explícito por item', 'manual_informado')
+            elif needs_manual:
+                freight = Rate(None, 'Preenchimento manual não informado', 'frete tipo 1 sem valor', 'pendente_manual')
             else:
                 freight = catalog.freight(item, reference)
             components = {'frete':freight, **components}

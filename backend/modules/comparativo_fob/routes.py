@@ -16,4 +16,14 @@ def create_router(service):
 
 def build_routes(service,context):
     from core.contracts import RouteSet
-    return RouteSet(routers=[(46,create_router(service))])
+    from .monthly import create_monthly_router
+    return RouteSet(routers=[(46,create_router(service)),(47,create_monthly_router(context.banco))])
+
+
+def create_integrated_router(context):
+    from .service import build_service
+    from .monthly import create_monthly_router
+    router=APIRouter()
+    router.include_router(create_router(build_service(context)))
+    router.include_router(create_monthly_router(context.banco))
+    return router

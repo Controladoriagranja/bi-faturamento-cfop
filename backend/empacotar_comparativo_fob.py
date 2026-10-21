@@ -14,17 +14,18 @@ app.include_router(criar_router_comparativo_fob(banco))
 '''
 
 
-def build(api_reference,snapshot):
-    """Somente montagem/análise de arquivos. Não importa nem inicia a aplicação."""
+def module_files(snapshot):
+    """Prepara só o módulo para mesclar à API mais recente; não gera ZIP/serviço."""
     files={}
     # Mantém o motor já validado. Só a localização do pacote muda.
-    for name in ('calculator','reference','repository','snapshot','workbook'):
+    for name in ('calculator','reference','repository','snapshot','workbook','freight'):
         files[f'{PACKAGE}/{name}.py']=(ROOT/f'backend/fob/{name}.py').read_bytes()
-    for name in ('aggregation','config','service','historical'):
+    for name in ('aggregation','config','service','historical','monthly'):
         source=(ROOT/f'backend/modules/comparativo_fob/{name}.py').read_text(encoding='utf-8')
         source=source.replace('from fob.calculator import ','from .calculator import ')
         source=source.replace('from fob.repository import ','from .repository import ')
         source=source.replace('from fob.snapshot import ','from .snapshot import ')
+        source=source.replace('from fob.freight import ','from .freight import ')
         source=source.replace("Path(__file__).resolve().parent/'data'/'referencia_excel.json'","Path(__file__).with_name('referencia_excel.json')")
         files[f'{PACKAGE}/{name}.py']=source.encode('utf-8')
     routes=(ROOT/'backend/modules/comparativo_fob/routes.py').read_text(encoding='utf-8')
@@ -34,15 +35,29 @@ def build(api_reference,snapshot):
 def criar_router_comparativo_fob(banco):
     from types import SimpleNamespace
     from .service import build_service
-    return create_router(build_service(SimpleNamespace(banco=banco)))
+    from .monthly import create_monthly_router
+    router=APIRouter()
+    router.include_router(create_router(build_service(SimpleNamespace(banco=banco))))
+    router.include_router(create_monthly_router(banco))
+    return router
 '''
     files[f'{PACKAGE}/routes.py']=routes.encode('utf-8')
     files[f'{PACKAGE}/__init__.py']=b'"""Comparativo PM FOB integrado a API existente por factory banco()."""\n'
     files[f'{PACKAGE}/referencia_excel.json']=snapshot
+    for name,data in files.items():
+        if name.endswith('.py'):ast.parse(data.decode('utf-8-sig'),filename=name)
+    return files
+
+
+def build(api_reference,snapshot):
+    """Montagem legada completa; não usar para sobrescrever uma API já integrada."""
+    files=module_files(snapshot)
     with ZipFile(api_reference) as baseline:
         original=baseline.read('api_zootecnico/servico_zootecnico.py')
         docker=baseline.read('api_zootecnico/Dockerfile.zootecnico')
         assert 'api_zootecnico/bi_generic/__init__.py' in baseline.namelist()
+        if 'api_zootecnico/frete_manual_auth.py' not in baseline.namelist():
+            raise ValueError('Esta integração exige a API final de frete manual. Não usar a base antiga sem autenticação/writer de fretes.')
         if b'COPY API/api_zootecnico/bi_generic ./bi_generic' not in docker:
             raise ValueError('Dockerfile fornecido nao copia bi_generic como esperado; revisar a base antes de empacotar.')
     if b'comparativo_fob' in original:

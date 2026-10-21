@@ -38,10 +38,10 @@
     <div id="fob-alert" class="fob-alert" hidden></div>
     <details class="fob-checks filter-card">
       <summary>Por que existem pendências e valores para conferir?</summary>
-      <p><strong>Pendente:</strong> falta um dado necessário para fechar o FOB. Frete tipo 1 sem valor e frete aplicável de Januária exigem confirmação manual por item. O valor salvo no Excel serve de referência, mas não confirma esse preenchimento. O parcial concluído não substitui o total.</p>
+      <p><strong>Pendente:</strong> falta um dado necessário para fechar o FOB. Nas outras unidades, frete tipo 1 sem valor exige confirmação manual por NF. Em Januária, é necessário custo mensal próprio ou a referência provisória de outubro/2026. O parcial concluído não substitui o total.</p>
       <p><strong>Diferença de entrada ou origem:</strong> algum dado diverge do Excel, está ausente ou tem origem provisória. Isso não significa automaticamente erro no FOB. Um item pode ter diferença e também estar pendente; as contagens não devem ser somadas.</p>
       <p><strong>Como conferir:</strong> abra os itens da família ou do canal e clique em <strong>Ver cálculo</strong>. Compare os valores de origem e do Excel, a fórmula e a origem do frete. Valide qual dado está correto antes de corrigir a fonte ou confirmar o valor manual.</p>
-      <p>O preenchimento de frete manual ainda não está disponível nesta tela. Para fechar as pendências de Januária, os valores confirmados precisam ser integrados ao cálculo por item. Uma diferença legítima entre a origem atual e a planilha pode continuar indicada mesmo após o FOB estar calculado.</p>
+      <p>Os valores são cadastrados em “Preenchimento de Fretes”, na opção por NF ou “Custo Mensal Januária”. O consumo pelo FOB depende da atualização consolidada da API. Uma diferença legítima entre a origem atual e a planilha pode continuar indicada mesmo após o FOB estar calculado.</p>
     </details>
     <div id="fob-cards" class="fob-cards" aria-label="Totalizadores por canal"></div>
     <section class="report-card fob-report" aria-labelledby="fob-table-title">
@@ -57,7 +57,7 @@
       </div>
       <footer class="report-footer"><span id="fob-source">Dados pela API autenticada da Granja Brasília.</span><span id="fob-count">—</span></footer>
     </section>
-    <details class="fob-method filter-card"><summary>Como os valores são calculados</summary><p>Preço FOB/kg = preço praticado − frete − comissão − adicional de comissão − contrato − administração − logística reversa − pallet − descarga, conforme a unidade. Valor FOB = peso × preço FOB/kg.</p><p>Frete tipo 1 sem valor e frete de Januária exigem preenchimento manual. Itens pendentes não entram como FOB concluído. Os cadastros de comissão são a referência inicial calculada no Excel.</p><p>A NF 806684, unidade 111, pode aparecer como provisória enquanto sua origem não estiver conciliada. As exclusões seguem os itens comprovados no Excel; uma exceção não é aplicada automaticamente a outros períodos.</p></details>
+    <details class="fob-method filter-card"><summary>Como os valores são calculados</summary><p>Preço FOB/kg = preço praticado − frete − comissão − adicional de comissão − contrato − administração − logística reversa − pallet − descarga, conforme a unidade. Valor FOB = peso × preço FOB/kg.</p><p>Frete manual por NF válido substitui todo o frete das outras unidades. Itens pendentes não entram como FOB concluído. Os cadastros de comissão são a referência inicial calculada no Excel.</p><p><strong>Regra provisória — Januária (102):</strong> o custo mensal por kg substitui o frete original de todas as notas, inclusive tipos 2, 3, 4, 5 e 9. A competência é determinada pelo mês da emissão da NF. Enquanto não houver custo cadastrado para determinada competência, será utilizado o custo de outubro/2026 como referência provisória. Assim que o valor do mês for cadastrado, ele passa a prevalecer. Sem outubro cadastrado, permanece pendente. Não se soma frete original, frete por NF ou redespacho a esse custo.</p><p>A NF 806684, unidade 111, pode aparecer como provisória enquanto sua origem não estiver conciliada. As exclusões seguem os itens comprovados no Excel; uma exceção não é aplicada automaticamente a outros períodos.</p></details>
   </section>
 </main>
 </body></html>

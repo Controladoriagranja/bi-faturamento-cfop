@@ -1,5 +1,7 @@
 # Comparativo PM FOB — entrega integrada
 
+> Entrega local atual (21/10/2026): [Frete manual e Januária](INTEGRACAO_FRETE_JANUARIA.md). Usar o módulo isolado preparado para a futura consolidação; não sobrescrever a API atual com o ZIP completo descrito nas etapas anteriores abaixo. Os registros históricos de validação foram mantidos.
+
 ## Atualização: consulta desde janeiro
 
 O intervalo aceito agora é 01/01/2026 até a data atual. Consultas totalmente dentro de 01–04/10 mantêm o motor e o perímetro conferidos no Excel. Os demais intervalos (inclusive mistos) usam `historical.py`: SELECT agregado por família/canal e SELECT paginado de até 500 itens, sem carregar o ano em memória e sem o limite de 5.000 itens da referência. Não foram executadas consultas reais nesta máquina; desempenho e disponibilidade histórica precisam ser conferidos no ambiente do Anderson.

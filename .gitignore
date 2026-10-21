@@ -4,3 +4,7 @@ artifacts/
 *.log
 .env
 .env.*
+tests/
+*.tmp
+*.temp
+tests/

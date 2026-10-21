@@ -1,5 +1,7 @@
 # Comparativo PM FOB — primeira entrega
 
+> Atualização de 21/10/2026: este documento preserva a conferência original do Excel. A regra de frete de Januária e a integração operacional foram substituídas pelas regras confirmadas em [INTEGRACAO_FRETE_JANUARIA.md](INTEGRACAO_FRETE_JANUARIA.md). Custo mensal não informado permanece pendente; não se usa o valor histórico do Excel como padrão.
+
 O motor independente em `backend/fob` foi integrado à tela oficial e a uma extensão separada para a API do Anderson. As APIs e o relatório de faturamento existentes são preservados. O cálculo usa somente a biblioteca padrão do Python 3.10+ e recebe dados/cadastros como parâmetros. Instalação, arquivos e validação da entrega visual: [COMPARATIVO_FOB_ENTREGA.md](COMPARATIVO_FOB_ENTREGA.md).
 
 Referências inspecionadas: `AnalisePreco01a04.xlsx`, abas FaturamentoANeRA, FaturamentoRN, FaturamentoJA, Comissão (o nome da aba termina com espaço), Despesas, FOBxRefaturamento, ControleFrete e FreteANeRA. As fórmulas compartilhadas foram expandidas, inclusive referências horizontais nas colunas ocultas N:AB da Comissão. As abas ocultas FOBxRefaturamento e ControleFrete também foram lidas. O arquivo original não foi modificado nem recalculado.
