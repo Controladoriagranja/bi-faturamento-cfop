@@ -1,28 +1,11 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <script>try{const t=localStorage.getItem("bi-zootecnico-theme");document.documentElement.dataset.theme=(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))?"dark":"light";}catch(_){}</script>
-  <title>Custos e Pendências · Granja Brasília</title>
-  <link rel="icon" href="assets/img/favicon-granja.png">
-  <link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/navigation.css">
-  <link rel="stylesheet" href="assets/css/frete-pendente.css"><link rel="stylesheet" href="assets/css/custos-pendencias.css">
-  <script defer src="assets/js/theme.js"></script><script defer src="assets/js/config.js"></script>
-  <script defer src="assets/js/api.js"></script><script defer src="assets/js/navigation.js"></script>
-  <script defer src="assets/js/custos-pendencias.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0;url=comparativo-fob.html">
+  <title>Comparativo PM FOB · Granja Brasília</title>
+  <script>location.replace(new URL('comparativo-fob.html',location.href));</script>
 </head>
-<body data-page="custos-pendencias">
-<main class="workspace freight-page">
-  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Custos e Pendências</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema"><span data-theme-icon aria-hidden="true">☾</span></button></div>
-  <header class="freight-intro"><span class="eyebrow">ALIMENTAÇÃO DO COMPARATIVO FOB</span><h1>Custos e Pendências</h1><p>Consulte a alimentação das planilhas-mestre e identifique o que ainda impede concluir o FOB.</p></header>
-  <aside class="freight-notice"><strong>Painel somente consulta · alimentação pelas planilhas-mestre</strong>O FOB utiliza o frete válido do PostgreSQL. Frete tipo 1 zerado ou sem valor deve ser preenchido em Fretes.xlsx. Despesas e comissões vêm dos cadastros importados de Despesas.xlsx e Comissoes.xlsx. Januária utiliza frete fixo em R$/kg por competência. Fórmulas de frete do Excel histórico não são exigidas.</aside>
-  <section class="filter-card" aria-labelledby="supply-title"><div class="filter-title"><strong id="supply-title">Situação da alimentação</strong><button id="costs-refresh" type="button">Atualizar situação</button></div><p id="costs-status" role="status" aria-live="polite">Consulte a situação para verificar o último lote válido.</p><div id="costs-files" class="costs-files"></div><div id="costs-coverage"></div></section>
-  <form id="costs-filters" class="filter-card"><div class="filter-title"><strong>Frete tipo 1 sem valor na origem</strong><span>Até 32 dias por consulta. Januária não participa desta lista.</span></div><div class="costs-filter-grid"><label class="field">Data inicial<input id="costs-start" type="date" required></label><label class="field">Data final<input id="costs-end" type="date" required></label><button type="submit" class="primary-button">Consultar pendências →</button></div></form>
-  <p id="costs-message" class="status" role="status" aria-live="polite">Aguardando consulta. Nenhum valor será gravado por esta página.</p>
-  <section class="filter-card"><div class="filter-title"><strong>Pendências dos componentes do FOB</strong><button id="costs-components-query" type="button">Conferir período selecionado</button></div><p id="costs-components" class="monthly-help" role="status">Confira frete, comissão, contrato, administração, logística reversa, pallet e descarga no mesmo período dos filtros.</p></section>
-  <section class="report-card" aria-labelledby="costs-table-title"><header class="report-header"><div><h2 id="costs-table-title">Itens e associação do frete</h2><p>O total por NF é dividido pelo peso integral da nota; filtros não alteram o denominador.</p></div><span id="costs-count">—</span></header><div class="freight-table-scroll" tabindex="0" aria-label="Itens e custos; role para ver todas as colunas"><table><thead><tr><th>Empresa / unidade</th><th>Série / NF / ano</th><th>Produto / cliente</th><th>Peso item</th><th>Peso integral NF</th><th>Situação da origem</th><th>Custo R$/kg</th><th>Origem / motivo</th></tr></thead><tbody id="costs-body"><tr><td colspan="8" class="empty">Consulte um período.</td></tr></tbody></table></div><footer class="freight-pagination"><button id="costs-prev" type="button" disabled>← Anterior</button><span id="costs-page">—</span><button id="costs-next" type="button" disabled>Próxima →</button></footer></section>
-  <section class="report-card costs-monthly"><header class="report-header"><h2>Frete fixo Januária · competências cadastradas</h2></header><p class="monthly-help">O valor do mês da emissão substitui todo o frete. Sem mês próprio, outubro/2026 é provisório; sem outubro cadastrado, permanece pendente.</p><div class="freight-table-scroll"><table><thead><tr><th>Competência</th><th>R$/kg</th><th>Versão</th><th>Última atualização</th></tr></thead><tbody id="costs-monthly"><tr><td colspan="4" class="empty">Consulte a situação da alimentação.</td></tr></tbody></table></div></section>
-  <p class="monthly-help">A lista acima mostra frete tipo 1 zerado ou nulo. Fretes ausentes de outros tipos e falta de comissão, contrato, logística reversa, pallet ou descarga devem ser investigados em “Ver cálculo” nos itens do <a href="comparativo-fob.html">Comparativo PM FOB</a>. Valor ausente não significa custo zero.</p>
-</main>
-</body></html>
+<body><p>Os preenchimentos são feitos nas planilhas-mestre. <a href="comparativo-fob.html">Abrir Comparativo PM FOB</a>.</p></body>
+</html>

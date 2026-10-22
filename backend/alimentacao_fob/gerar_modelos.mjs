@@ -52,6 +52,23 @@ try { for(const [filename,sheets] of Object.entries(seed.files)){
       sh.getRange(`${status}6:${status}30005`).conditionalFormats.add('cellIs',{operator:'equal',formula:'"REVISAR_IDENTIFICACAO"',format:{fill:'#fce4d6'}});
       sh.getRange(`${status}6:${status}30005`).conditionalFormats.add('cellIs',{operator:'equal',formula:'"PENDENTE"',format:{fill:'#fff2cc'}});
     }
+    if(filename==='Fretes.xlsx'&&spec.name==='Pendências'){
+      sh.getRange('A2').values=[['CONSULTA AUTOMÁTICA: não preencha valores aqui. Abra Preenchimentos e informe o frete na coluna L, destacada em amarelo.']];
+    }
+    if(filename==='Fretes.xlsx'&&spec.name==='Preenchimentos'){
+      if(spec.headers[11]!=='valor')throw new Error('Coluna de frete diverge do modelo.');
+      sh.getRange('A2').values=[['Copie os identificadores e a assinatura da aba Pendências. Se o escopo for NF, deixe chave_item vazia. Escolha NF/ITEM e TOTAL/KG antes de informar o valor.']];
+      sh.mergeCells('A3:M3');
+      sh.getRange('A3').values=[['AMARELO = preencher o frete em valor (coluna L). TOTAL = total da NF/ITEM em R$. KG = valor por kg (R$/kg). Valor vazio permanece pendente.']];
+      sh.getRange('A3:M3').format={fill:'#FFF2CC',font:{name:'Arial',size:10,bold:true,color:'#6B4500'},wrapText:true,rowHeight:32};
+      sh.getRange('J4:L4').values=[['NF ou ITEM','TOTAL ou KG','INFORME O FRETE']];
+      sh.getRange('J4:L4').format.font={name:'Arial',size:10,bold:true,color:'#6B4500'};
+      sh.getRange('L4:L5').format.fill='#E8B44E';
+      sh.getRange('L5').format.font={name:'Arial',size:10,bold:true,color:'#382600'};
+      sh.getRange('L6:L200').format.fill='#FFF2CC';
+      sh.getRange('L6:L200').format.font.color='#1557A0';
+      sh.getRange('L6:L50005').conditionalFormats.add('expression',{formula:'ROW()>5',format:{fill:'#FFF2CC'}});
+    }
   }
   wb.recalculate();
   const scan=await wb.inspect({kind:'match',searchTerm:'#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A',options:{useRegex:true,maxResults:10}});

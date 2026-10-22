@@ -1,66 +1,11 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <script>try{const t=localStorage.getItem("bi-zootecnico-theme");document.documentElement.dataset.theme=(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))?"dark":"light";}catch(_){}</script>
-  <title>Preenchimento de Fretes · Granja Brasília</title>
-  <link rel="icon" href="assets/img/favicon-granja.png">
-  <link rel="stylesheet" href="assets/css/app.css">
-  <link rel="stylesheet" href="assets/css/navigation.css">
-  <link rel="stylesheet" href="assets/css/frete-pendente.css">
-  <script defer src="assets/js/theme.js"></script>
-  <script defer src="assets/js/config.js"></script>
-  <script defer src="assets/js/api.js"></script>
-  <script defer src="assets/js/navigation.js"></script>
-  <script defer src="assets/js/frete-pendente.js"></script>
-  <script defer src="assets/js/custo-januaria.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0;url=comparativo-fob.html">
+  <title>Comparativo PM FOB · Granja Brasília</title>
+  <script>location.replace(new URL('comparativo-fob.html',location.href));</script>
 </head>
-<body data-page="frete-pendente">
-<main class="workspace freight-page">
-  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Preenchimento de Fretes</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema" title="Alternar tema"><span data-theme-icon aria-hidden="true">☾</span></button></div>
-  <header class="freight-intro"><span class="eyebrow">FRETES MANUAIS</span><h1>Preenchimento de Fretes</h1><p>Informe o valor total do frete por nota. O valor por kg será calculado pela API.</p></header>
-  <div class="monthly-tabs" role="group" aria-label="Tipo de cadastro"><button type="button" data-freight-panel="freight-nf-panel" aria-pressed="true" aria-controls="freight-nf-panel">Frete por NF</button><button type="button" data-freight-panel="monthly-panel" aria-pressed="false" aria-controls="monthly-panel">Custo Mensal Januária</button></div>
-  <section id="freight-nf-panel" aria-label="Frete manual por nota">
-  <form id="freight-filters" class="filter-card" aria-label="Filtros de fretes">
-    <div class="filter-title"><strong>Localizar notas</strong><span>Use o identificador exato da empresa cadastrado no sistema.</span></div>
-    <div class="freight-filters-grid">
-      <label class="field">Empresa<input id="freight-company" type="text" required autocomplete="off" placeholder="Identificador exato" maxlength="100"></label>
-      <label class="field">Unidade<select id="freight-unit" required><option value="">Selecione</option><option value="10">10 · Ave Nova</option><option value="111">111 · Real Alimentos</option><option value="180">180 · Ribeirão das Neves</option><option value="102">102 · Januária</option></select></label>
-      <label class="field">Ano da NF<input id="freight-year" type="number" required min="2000" max="2100" step="1"></label>
-      <label class="field">Situação<select id="freight-status-filter"><option value="PENDENTE">Pendentes</option><option value="PREENCHIDO">Preenchidos</option><option value="REVISAR_IDENTIFICACAO">Revisar identificação</option><option value="TODOS">Todos</option></select></label>
-      <label class="field">Notas por página<select id="freight-size"><option>25</option><option selected>50</option><option>100</option><option>200</option></select></label>
-      <button type="submit" id="freight-query" class="primary-button">Consultar notas <span aria-hidden="true">→</span></button>
-    </div>
-  </form>
-  <p id="freight-message" class="status" role="status" aria-live="polite">Informe empresa, unidade e ano para consultar.</p>
-  <aside id="freight-reconcile" class="freight-notice" hidden><strong>Nova consulta obrigatória.</strong> <span id="freight-reconcile-text"></span> Os valores digitados continuam visíveis para conferência. Use “Consultar notas” antes de tentar salvar novamente.</aside>
-  <section id="freight-report" class="report-card" aria-labelledby="freight-table-title">
-    <header class="report-header"><div><h2 id="freight-table-title">Notas e valores de frete</h2><p id="freight-context">Aguardando consulta</p></div><span id="freight-count">Nenhuma página carregada</span></header>
-    <div class="freight-tools"><label class="field">Buscar nesta página<input id="freight-local-search" type="search" placeholder="NF, série, empresa ou responsável" maxlength="150" autocomplete="off"></label><p>A busca filtra apenas as notas já carregadas nesta página.</p></div>
-    <div class="freight-table-scroll" tabindex="0" aria-label="Notas e edição de fretes; role para ver todas as colunas">
-      <table><thead><tr><th scope="col">Empresa / unidade</th><th scope="col">Série</th><th scope="col">NF</th><th scope="col">Ano</th><th scope="col">Itens</th><th scope="col">Peso (kg)</th><th scope="col">Situação</th><th scope="col">Frete total (R$)</th><th scope="col">Frete/kg (R$)</th><th scope="col">Último responsável</th><th scope="col">Data / hora</th><th scope="col">Informar total (R$)</th></tr></thead><tbody id="freight-body"><tr><td colspan="12" class="empty">Aguardando consulta autenticada.</td></tr></tbody></table>
-    </div>
-    <footer class="freight-pagination"><button type="button" id="freight-prev" disabled>← Anterior</button><span id="freight-page-label">—</span><button type="button" id="freight-next" disabled>Próxima →</button></footer>
-  </section>
-  <div class="freight-save-bar"><div><strong id="freight-dirty-count">Nenhuma alteração</strong><p id="freight-save-hint">Até 100 notas por salvamento. O total por NF deve ser positivo; campo vazio não é zero.</p></div><div class="freight-save-actions"><button type="button" id="freight-discard" disabled>Descartar alterações</button><button type="button" id="freight-save" class="primary-button" disabled>Salvar alterações</button></div></div>
-  <aside class="pending-note"><span aria-hidden="true">ⓘ</span><p><strong>Notas para revisar identificação são somente leitura.</strong> A identificação precisa ser corrigida na origem antes do preenchimento. Em Januária, o custo mensal tem prioridade sobre o frete por NF. A disponibilização dessas regras no FOB depende da atualização consolidada do backend.</p></aside>
-  </section>
-  <section id="monthly-panel" aria-labelledby="monthly-title" hidden>
-    <form id="monthly-form" class="filter-card">
-      <div class="filter-title"><strong id="monthly-title">Custo Mensal Januária · Unidade 102</strong><span>R$/kg aplicado a todas as notas, pela competência da emissão.</span></div>
-      <div class="monthly-fields"><label class="field">Competência<input id="monthly-competence" type="month" min="2000-01" max="2100-12" required></label><button id="monthly-query" type="button">Consultar competência</button><label class="field">Custo próprio do mês (R$/kg)<input id="monthly-value" type="text" inputmode="decimal" maxlength="30" autocomplete="off" placeholder="Ex.: 0,1234567890" disabled></label><button id="monthly-save" type="submit" class="primary-button" disabled>Salvar custo</button></div>
-      <p class="monthly-help">Até 10 casas decimais. Zero explícito é permitido neste cadastro mensal. O valor herdado não preenche automaticamente o custo próprio.</p>
-      <p id="monthly-dirty" class="monthly-help">Nenhuma alteração.</p>
-    </form>
-    <p id="monthly-message" class="status" role="status" aria-live="polite">Consulte uma competência para cadastrar ou corrigir seu custo.</p>
-    <aside id="monthly-effective" class="freight-notice">Sem valor presumido: outubro/2026 ainda precisa ser consultado e cadastrado.</aside>
-    <p id="monthly-audit" class="monthly-help"></p>
-    <section class="report-card" aria-labelledby="monthly-history-title"><header class="report-header"><h2 id="monthly-history-title">Competências cadastradas</h2><span>Criação e última alteração</span></header>
-      <div class="freight-table-scroll"><table class="monthly-history"><thead><tr><th>Competência</th><th>Custo (R$/kg)</th><th>Criado por / em</th><th>Alterado por / em</th><th>Versão</th><th>Ação</th></tr></thead><tbody id="monthly-history"><tr><td colspan="6" class="empty">Aguardando consulta.</td></tr></tbody></table></div>
-      <footer class="freight-pagination"><button type="button" id="monthly-prev" disabled>← Anterior</button><span id="monthly-page">—</span><button type="button" id="monthly-next" disabled>Próxima →</button></footer>
-    </section>
-    <aside class="pending-note"><span aria-hidden="true">ⓘ</span><p>O custo próprio substitui todo o frete de Januária, em todos os tipos de frete. Sem custo próprio, usa outubro/2026 provisoriamente; sem outubro cadastrado, o FOB permanece pendente. Não existe exclusão de competência pela tela.</p></aside>
-  </section>
-</main>
-</body></html>
+<body><p>Os preenchimentos são feitos nas planilhas-mestre. <a href="comparativo-fob.html">Abrir Comparativo PM FOB</a>.</p></body>
+</html>

@@ -7,6 +7,6 @@ const APP_CONFIG = {
   fretesManuais: "/api/comercial-html/fretes-manuais",
   custosJanuaria: "/api/comercial-html/fretes-manuais/custos-januaria",
   custosFOB: "/api/comercial/comparativo-fob/custos",
-  // Manter o editor anterior até a homologação; depois alterar somente esta opção.
-  legacyFreightEditor: true
+  // Preenchimentos financeiros são feitos nas planilhas-mestre.
+  legacyFreightEditor: false
 };
