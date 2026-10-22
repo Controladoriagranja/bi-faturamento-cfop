@@ -5,5 +5,8 @@ const APP_CONFIG = {
   endpoints: {filtros: "/api/bi/faturamento-nf/filtros", resumo: "/api/bi/faturamento-nf/resumo", detalhes: "/api/bi/faturamento-nf/detalhes"},
   fob: {filtros:"/api/comercial/comparativo-fob/filtros",resumo:"/api/comercial/comparativo-fob/resumo",detalhes:"/api/comercial/comparativo-fob/detalhes"},
   fretesManuais: "/api/comercial-html/fretes-manuais",
-  custosJanuaria: "/api/comercial-html/fretes-manuais/custos-januaria"
+  custosJanuaria: "/api/comercial-html/fretes-manuais/custos-januaria",
+  custosFOB: "/api/comercial/comparativo-fob/custos",
+  // Manter o editor anterior até a homologação; depois alterar somente esta opção.
+  legacyFreightEditor: true
 };

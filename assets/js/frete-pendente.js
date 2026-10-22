@@ -1,5 +1,6 @@
 /* Interface de frete manual. Identidade, peso, versão e cálculo final pertencem à API. */
 (() => {
+  if(APP_CONFIG.legacyFreightEditor===false){location.replace(new URL('custos-pendencias.html',location.href));return;}
   const $=id=>document.getElementById(id);
   const endpoint=APP_CONFIG.fretesManuais, storageKey='granja-faturamento:fretes:filtros:v1';
   const units=['10','111','180','102'], statuses=['PENDENTE','PREENCHIDO','REVISAR_IDENTIFICACAO','TODOS'];

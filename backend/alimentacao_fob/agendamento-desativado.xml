@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>FOB: modelo desativado, sem gatilhos. Definir conta técnica, frequência e habilitar somente após homologação e autorização da primeira importação. Ação inicial: somente validar as planilhas.</Description>
+  </RegistrationInfo>
+  <Triggers />
+  <Principals>
+    <Principal id="Robot">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>false</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <Enabled>false</Enabled>
+    <Hidden>true</Hidden>
+    <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>
+  </Settings>
+  <Actions Context="Robot">
+    <Exec>
+      <Command>C:\Users\vchaves\AppData\Local\Programs\Python\Python314\python.exe</Command>
+      <Arguments>-B -m alimentacao_fob --config "C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend\alimentacao_fob\.env.local"</Arguments>
+      <WorkingDirectory>C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

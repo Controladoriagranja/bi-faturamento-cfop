@@ -99,11 +99,11 @@
   function render(){
     channels.splice(0,channels.length,...new Set(['Varejo','Atacado','Subprodutos',...payload.canais.map(c=>c.canal)]));
     $('fob-reference').disabled=payload.contexto.referencia_disponivel===false;
-    document.querySelector('.fob-reference-tag').textContent=payload.contexto.modo==='historico'?'Histórico do banco · FOB aguarda despesas':'Referência de 01 a 04/10/2026';
+    document.querySelector('.fob-reference-tag').textContent=payload.contexto.modo==='planilhas_mestre'?'Planilhas-mestre · parâmetros com vigência':payload.contexto.modo==='historico'?'Histórico do banco · FOB aguarda despesas':'Referência de 01 a 04/10/2026';
     renderCards();if(mode==='matrix')renderMatrix();else renderCosts();
     const total=payload.total,context=payload.contexto;
     const notices=[];
-    if(context.modo==='historico')notices.push(context.observacao);
+    if(context.modo==='historico'||context.modo==='planilhas_mestre')notices.push(context.observacao);
     if(total.pesos_ausentes)notices.push(`${total.pesos_ausentes} itens sem peso: o peso apresentado está incompleto.`);
     if(total.pendentes)notices.push(`${total.pendentes} itens aguardam dados: ${fmt(total.peso_pendente)} kg. O FOB total permanece em aberto.`);
     if(total.ausentes)notices.push(`${total.ausentes} itens da referência não foram encontrados na origem; o peso apresentado está incompleto.`);
@@ -111,8 +111,8 @@
     if(total.divergencias)notices.push(`${total.divergencias} itens com diferença de entrada ou origem em relação ao Excel. Esse aviso pode coincidir com uma pendência. Abra “Ver cálculo” nos itens para comparar os valores.`);
     $('fob-alert').textContent=notices.join(' ');$('fob-alert').hidden=!notices.length;
     $('fob-period').textContent=`${date(context.data_inicio)} a ${date(context.data_fim)}`;
-    $('fob-source').textContent=context.modo==='historico'?'PostgreSQL · Despesas históricas ainda não cadastradas · Canal do cadastro atual':'PostgreSQL · Cadastros iniciais do Excel · Sem arredondamento intermediário';
-    $('fob-count').textContent=context.modo==='historico'?`${fmt(total.itens)} itens da view no período consultado`:`${fmt(total.itens)} itens · ${fmt(context.linhas_fora_perimetro)} fora do perímetro na base de referência`;
+    $('fob-source').textContent=context.modo==='planilhas_mestre'?'PostgreSQL · Planilhas-mestre com vigência · Sem arredondamento intermediário':context.modo==='historico'?'PostgreSQL · Despesas históricas ainda não cadastradas · Canal do cadastro atual':'PostgreSQL · Cadastros iniciais do Excel · Sem arredondamento intermediário';
+    $('fob-count').textContent=context.modo==='historico'||context.modo==='planilhas_mestre'?`${fmt(total.itens)} itens no período consultado`:`${fmt(total.itens)} itens · ${fmt(context.linhas_fora_perimetro)} fora do perímetro na base de referência`;
     $('fob-export').disabled=!payload.grupos.length;
   }
   async function query(restored=null){

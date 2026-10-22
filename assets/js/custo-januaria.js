@@ -1,5 +1,6 @@
 /* Cadastro mensal independente do formulário por NF. Sem cálculo financeiro do FOB. */
 (() => {
+  if(APP_CONFIG.legacyFreightEditor===false)return;
   const $=id=>document.getElementById(id), endpoint=APP_CONFIG.custosJanuaria;
   const formatter=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:10,minimumFractionDigits:4});
   let loaded=null,busy=false,locked=true,baseline='',dirty=false,version=0,page=1,next=false,leaveApproved=false;

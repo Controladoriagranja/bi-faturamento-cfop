@@ -117,6 +117,9 @@ class ComparativoFOBService:
         if any(len(vals)>100 or any(len(v)>150 for v in vals) for vals in choices.values()):raise HTTPException(422,'Limite de filtro excedido.')
         only_pending=single('pendentes','0');search=single('busca').strip().casefold()
         if only_pending not in ('0','1') or len(search)>200:raise HTTPException(422,'Busca ou estado inválido.')
+        from .feeding import enabled,execute_master
+        if enabled():
+            return execute_master(self,operation,start,end,choices,search,single,catalog)
         if start.isoformat()<catalog.period[0] or end.isoformat()>catalog.period[1]:
             return execute_history(self.context,operation,start,end,choices,search,single)
         payload=self._read();rows=[]
