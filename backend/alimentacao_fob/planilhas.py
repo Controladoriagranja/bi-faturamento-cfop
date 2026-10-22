@@ -235,7 +235,39 @@ def update_pending(content,records):
     return out.getvalue()
 
 
-def publish_pending(path,expected_hash,updated):
+def merge_pending(content,records,start,end):
+    """Substitui só a janela consultada; preserva meses não consultados."""
+    def key(row):
+        values=tuple(str(row.get(k) or '') for k in (*NF,'chave_item'))
+        if not all(values):raise ValueError('Pendência sem chave completa; revisar identificação antes de acumular.')
+        return values
+    merged={};previous=[]
+    for row in table(content,'Pendências',PENDING_HEADERS):
+        current=input_date(row['data'])
+        previous.append({**{k:v for k,v in row.items() if k!='_linha'},'data':current})
+        if str(start)<=current<=str(end):continue
+        row={k:v for k,v in row.items() if k!='_linha'};row['data']=current
+        identity=key(row)
+        if identity in merged:raise ValueError('Pendência anterior duplicada; arquivo preservado.')
+        merged[identity]=row
+    refreshed=set()
+    for row in records:
+        current=input_date(row.get('data'))
+        if not str(start)<=current<=str(end):raise ValueError('Pendência fora da janela consultada.')
+        identity=key(row)
+        if identity in refreshed:raise ValueError('Itens indistinguíveis na janela; arquivo preservado.')
+        refreshed.add(identity);merged[identity]=row
+    result=sorted(merged.values(),key=lambda r:(input_date(r['data']),key(r)))
+    if len(result)>50000:raise ValueError('Mais de 50.000 pendências; nenhum registro foi truncado.')
+    def comparable(rows):
+        return sorted((tuple(str(r.get(k)) if r.get(k) not in (None,'') and k not in
+            ('peso_total_nf','peso_item','quantidade','frete_original','ano_nf') else
+            decimal(r[k]) if r.get(k) not in (None,'') else None for k in PENDING_HEADERS) for r in rows),key=str)
+    if comparable(previous)==comparable(result):return content,len(result)
+    return update_pending(content,result),len(result)
+
+
+def publish_pending(path,expected_hash,updated,allowed_parts=None):
     """Arquivo temporário no mesmo volume e troca atômica; nunca salva sobre edição."""
     path=Path(path);temp=None;backup=None
     try:
@@ -249,10 +281,12 @@ def publish_pending(path,expected_hash,updated):
                 ns='{'+NS+'}'
                 book=ET.fromstring(before.read('xl/workbook.xml'))
                 relationships={r.attrib['Id']:r.attrib['Target'] for r in ET.fromstring(before.read('xl/_rels/workbook.xml.rels'))}
-                sheet=next(s for s in book.find(ns+'sheets') if s.attrib['name']=='Pendências')
-                target=relationships[sheet.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']]
-                target=target.lstrip('/') if target.startswith('/') else 'xl/'+target
-                if any(before.read(name)!=after.read(name) for name in before.namelist() if name!=target):
+                if allowed_parts is None:
+                    sheet=next(s for s in book.find(ns+'sheets') if s.attrib['name']=='Pendências')
+                    target=relationships[sheet.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']]
+                    target=target.lstrip('/') if target.startswith('/') else 'xl/'+target
+                    allowed_parts={target}
+                if any(before.read(name)!=after.read(name) for name in before.namelist() if name not in allowed_parts):
                     raise ValueError('A atualização alteraria outra aba; arquivo original preservado.')
             folder=path.parent/'.backups';folder.mkdir(exist_ok=True)
             stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')

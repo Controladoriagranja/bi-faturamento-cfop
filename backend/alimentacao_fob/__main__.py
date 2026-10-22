@@ -7,9 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from fob.master_data import invoice_key,pending_rows
-from fob.master_repository import read_candidates,read_invoices
-from .planilhas import locked,read_bundle,update_pending,publish_pending
+from .planilhas import locked,read_bundle
 from .importador import import_bundle,Unchanged,record_rejection
 from .configuracao import load_config,connect,safe_error
 
@@ -25,6 +23,11 @@ def main(argv=None):
     actions.add_argument('--atualizar-pendencias',action='store_true',help='Consulta PostgreSQL e atualiza só a aba automática.')
     actions.add_argument('--conferir-banco',action='store_true',help='Confere identidade, tabelas e privilégios com SELECTs.')
     actions.add_argument('--preparar-importacao',action='store_true',help='Prévia e backup privado; nenhuma escrita PostgreSQL.')
+    actions.add_argument('--recuperar-pendencias',action='store_true',help='Recupera mês a mês, acumulando Pendências; sem importar.')
+    actions.add_argument('--rotina-diaria',action='store_true',help='Janela recente, prévia/backup e sincronização; só após sucesso do faturamento.')
+    actions.add_argument('--preparar-historico',action='store_true',help='Backup e réplicas provisórias mensais em plano privado; sem escrita financeira.')
+    actions.add_argument('--publicar-historico',type=Path,metavar='PLANO',help='Publica mestres preparados e gera prévia; não importa no PostgreSQL.')
+    parser.add_argument('--calendario-replica',choices=['REPLICAR_26_5'],help='Somente após aceite do calendário provisório da folha.')
     parser.add_argument('--inicio',type=date.fromisoformat)
     parser.add_argument('--fim',type=date.fromisoformat)
     args=parser.parse_args(argv)
@@ -34,8 +37,32 @@ def main(argv=None):
     args.pasta=args.pasta or Path(os.environ.get('FOB_PLANILHAS_DIR',DEFAULT_FOLDER))
     if args.atualizar_pendencias and (not args.inicio or not args.fim or not 0<=(args.fim-args.inicio).days<=31):
         parser.error('Pendências exigem --inicio/--fim com até 32 dias inclusivos.')
+    if args.recuperar_pendencias and (not args.inicio or not args.fim or args.inicio>args.fim):
+        parser.error('Recuperação exige --inicio/--fim válidos; as consultas são mensais.')
     contents={};files={};result={}
     try:
+        if args.publicar_historico:
+            from .historico import publish_history
+            result=publish_history(args.pasta,args.publicar_historico,args.calendario_replica)
+            print(json.dumps(dict(modo='mestres_publicados_sincronizacao_pendente',**result),ensure_ascii=False));return 0
+        if args.preparar_historico:
+            from .historico import prepare_history
+            result=prepare_history(args.pasta,args.calendario_replica)
+            print(json.dumps(dict(ok=True,modo='previa_historica_sem_escrita',**result),ensure_ascii=False));return 0
+        if args.recuperar_pendencias or args.rotina_diaria or args.atualizar_pendencias:
+            from .rotina import daily,month_windows,refresh_window,log_result
+            if args.rotina_diaria:
+                if args.inicio or args.fim:raise ValueError('Rotina diária usa FOB_JANELA_DIAS; datas pertencem à recuperação histórica.')
+                result=daily(args.pasta,int(os.environ.get('FOB_JANELA_DIAS','14')))
+            else:
+                periods=list(month_windows(args.inicio,args.fim)) if args.recuperar_pendencias else [(args.inicio,args.fim)]
+                reports=[]
+                for start,end in periods:
+                    report=refresh_window(args.pasta,start,end);reports.append(report)
+                    print(json.dumps(dict(ok=True,etapa='pendencias_mensais',**report),ensure_ascii=False),flush=True)
+                result=dict(modo='recuperacao_pendencias' if args.recuperar_pendencias else 'atualizacao_pendencias',meses=reports)
+            log_result(dict(ok=True,**result))
+            print(json.dumps(dict(ok=True,**result),ensure_ascii=False));return 0
         if args.conferir_banco:
             from .verificacao import inspect_database
             with connect() as conn:
@@ -63,24 +90,15 @@ def main(argv=None):
                 with connect('FOB_PG_WRITE_DSN',True) as conn:
                     try:result=dict(modo='sincronizacao',**import_bundle(conn,rules,monthly,files,actor))
                     except Unchanged as unchanged:result=dict(modo='sem_alteracoes',**unchanged.summary)
-        if args.atualizar_pendencias:
-            with connect('FOB_PG_READ_DSN') as conn:
-                with conn.transaction():
-                    conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-                    items=read_candidates(conn,args.inicio,args.fim)
-                    invoices=read_invoices(conn,[invoice_key(i) for i in items])
-                    pending=pending_rows(items,invoices)
-            content=contents['Fretes.xlsx']
-            updated=update_pending(content,pending)
-            backup=publish_pending(args.pasta/'Fretes.xlsx',files['Fretes.xlsx']['sha256'],updated)
-            keys={tuple(r.get(k) for k in ('empresa_contexto','unidade_documento','serie','nota_numero','ano_nf')) for r in pending if r.get('empresa_contexto')}
-            result.update(pendencias=len(pending),notas=len(keys),revisar_identificacao=sum(r['situacao']!='PENDENTE' for r in pending),
-                          backup=str(backup),preenchimentos_preservados=True,periodo=[str(args.inicio),str(args.fim)])
         print(json.dumps(dict(ok=True,**result),ensure_ascii=False))
         return 0
     except Exception as error:
         # Nunca imprimir DSN, senha, argumentos SQL ou dados salariais.
         message=safe_error(error)
+        if args.rotina_diaria or args.recuperar_pendencias or args.atualizar_pendencias:
+            from .rotina import log_result
+            try:log_result(dict(ok=False,erro=message))
+            except OSError:pass
         if args.sincronizar:
             try:
                 with connect('FOB_PG_WRITE_DSN',True) as conn:record_rejection(conn,files,message)

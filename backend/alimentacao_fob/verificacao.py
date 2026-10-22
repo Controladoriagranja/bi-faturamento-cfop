@@ -70,8 +70,8 @@ def inspect_database(conn):
 
 
 def read_state(conn,monthly):
-    current=conn.execute('SELECT * FROM comercial.fob_cadastro ORDER BY registro LIMIT 50001').fetchall()
-    if len(current)>50000:raise ValueError('Prévia excede 50.000 cadastros; nenhuma escrita foi realizada.')
+    current=conn.execute('SELECT * FROM comercial.fob_cadastro ORDER BY registro LIMIT 100001').fetchall()
+    if len(current)>100000:raise ValueError('Prévia excede 100.000 cadastros; nenhuma escrita foi realizada.')
     old_months=[]
     for cost in monthly:
         row=conn.execute('SELECT * FROM comercial.custo_mensal_januaria WHERE competencia=%s',[cost['competencia']]).fetchone()
@@ -108,6 +108,8 @@ def build_plan(conn,rules,monthly,files,actor):
         ator_configurado=bool(actor.isdecimal() and int(actor)>0),
         tabelas_destino=['comercial.'+t for t in INSERT_COLUMNS],
         autorizacao_producao='PENDENTE; este plano não executa nem autoriza a escrita.')
+    from .historico import provisional_coverage
+    summary['cobertura_provisoria']=provisional_coverage({**indexed,**{r['registro']:r for r in rules}}.values())
     return dict(versao=1,gerado_em=datetime.now(timezone.utc).isoformat(),arquivos=files,
                 estado_antes=plain(state),estado_sha256=fingerprint(state),resumo=plain(summary))
 

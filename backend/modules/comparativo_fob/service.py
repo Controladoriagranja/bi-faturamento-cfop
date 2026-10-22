@@ -7,7 +7,7 @@ import logging
 from threading import RLock
 
 from fastapi import HTTPException
-from fob.calculator import calculate_item,code,decimal,item_key
+from fob.calculator import calculate_item,code,decimal,item_key,requires_freight_fill
 from fob.repository import read_invoice,read_freight_overrides
 from fob.snapshot import SnapshotCatalog
 from .aggregation import aggregate,public,order_items
@@ -103,7 +103,7 @@ class ComparativoFOBService:
                 periodo_disponivel=dict(data_inicio='2026-01-01',data_fim=date.today().isoformat()),
                 periodo_referencia=dict(data_inicio=catalog.period[0],data_fim=catalog.period[1]),
                 observacao='Histórico da view desde janeiro. Despesas validadas somente de 01 a 04/10/2026.')
-        allowed={'data_inicio','data_fim','unidade','familia','canal','pendentes','busca','pagina','por_pagina','ordenar_por','ordem'}
+        allowed={'data_inicio','data_fim','unidade','familia','canal','pendentes','preencher_frete','busca','pagina','por_pagina','ordenar_por','ordem'}
         if set(request.query_params)-allowed:raise HTTPException(422,'Filtro não configurado.')
         def single(name,default=''):
             values=request.query_params.getlist(name)
@@ -116,11 +116,13 @@ class ComparativoFOBService:
         choices={key:request.query_params.getlist(key) for key in ('unidade','familia','canal')}
         if any(len(vals)>100 or any(len(v)>150 for v in vals) for vals in choices.values()):raise HTTPException(422,'Limite de filtro excedido.')
         only_pending=single('pendentes','0');search=single('busca').strip().casefold()
-        if only_pending not in ('0','1') or len(search)>200:raise HTTPException(422,'Busca ou estado inválido.')
+        freight_fill=single('preencher_frete','0')
+        if only_pending not in ('0','1') or freight_fill not in ('0','1') or len(search)>200:raise HTTPException(422,'Busca ou estado inválido.')
         from .feeding import enabled,execute_master
         if enabled():
             return execute_master(self,operation,start,end,choices,search,single,catalog)
         if start.isoformat()<catalog.period[0] or end.isoformat()>catalog.period[1]:
+            if freight_fill=='1':raise HTTPException(409,'O detalhamento de Fretes.xlsx exige a alimentação por planilhas-mestre.')
             return execute_history(self.context,operation,start,end,choices,search,single)
         payload=self._read();rows=[]
         for row in payload['rows']:
@@ -129,6 +131,7 @@ class ComparativoFOBService:
             if choices['unidade'] and code(identity.get('unidade_documento')) not in choices['unidade']:continue
             if any(choices[k] and row[k] not in choices[k] for k in ('familia','canal')):continue
             if only_pending=='1' and row.get('valor_fob') is not None:continue
+            if freight_fill=='1' and not requires_freight_fill(row):continue
             if search and search not in ' '.join(str(identity.get(k) or '') for k in ('nota_numero','produto','cliente')).casefold()+' '+str(row.get('produto_descricao') or '').casefold():continue
             rows.append(row)
         common=dict(contexto={**payload['contexto'],'data_inicio':start,'data_fim':end},total=aggregate(rows))

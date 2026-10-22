@@ -52,6 +52,17 @@ class Catalog(Protocol):
     def freight(self, item, reference) -> Rate: ...
 
 
+def requires_freight_fill(row):
+    """Mesmo critério do Fretes.xlsx: tipo 1 zero/nulo fora de Januária,
+    excluindo um preenchimento já válido. Outras despesas não entram nessa lista.
+    """
+    source=row.get('dados_entrada') or {}
+    identity=row.get('identificacao') or {}
+    freight=(row.get('componentes') or {}).get('frete') or {}
+    return code(identity.get('unidade_documento'))!='102' and code(source.get('frete'))=='1' and \
+        decimal(source.get('frete_kg')) in (None,ZERO) and freight.get('value') is None
+
+
 def combine(price, weight, components):
     if any(rate.value is None for rate in components.values()): return None, None
     price_fob = price - sum((rate.value for rate in components.values()), ZERO)
@@ -101,10 +112,12 @@ def calculate_item(item, catalog: Catalog, manual_freight: ManualFreight | None 
                 freight = catalog.freight(item, reference)
             components = {'frete':freight, **components}
             price_fob, value_fob = combine(price, weight, components)
+            available_price=price-sum((rate.value for rate in components.values() if rate.value is not None),ZERO)
             out.update(status='calculado' if value_fob is not None else 'pendente', peso=weight,
                        preco_praticado_kg=price, frete_kg_origem=raw_freight,
                        componentes={key:asdict(rate) for key,rate in components.items()},
                        preco_fob_kg=price_fob, valor_fob=value_fob,
+                       preco_fob_disponivel_kg=available_price,valor_fob_disponivel=weight*available_price,
                        formula_preco_fob='preco_praticado - soma(componentes/kg)', formula_valor_fob='peso * preco_fob_kg',
                        pendencias=[key for key,rate in components.items() if rate.value is None])
             out.update({key+'_kg':rate.value for key,rate in components.items()})

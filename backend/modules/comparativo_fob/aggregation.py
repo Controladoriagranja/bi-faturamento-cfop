@@ -1,6 +1,6 @@
 """Agregações ponderadas, sem converter pendência em zero ou média completa."""
 from decimal import Decimal, localcontext
-from fob.calculator import code
+from fob.calculator import code,requires_freight_fill
 from .config import COSTS
 
 ZERO=Decimal(0)
@@ -36,17 +36,24 @@ def aggregate(rows):
         reference_weight=sum((r.get('peso_excel',r.get('peso')) or ZERO for r in rows),ZERO)
         gross=sum(((r.get('peso') or ZERO)*(r.get('preco_praticado_kg') or ZERO) for r in rows),ZERO)
         value=None if pending else partial
+        available=[r for r in rows if r.get('valor_fob_disponivel',r.get('valor_fob')) is not None]
+        available_value=sum((r.get('valor_fob_disponivel',r.get('valor_fob')) for r in available),ZERO)
+        available_weight=sum((r.get('peso') or ZERO for r in available),ZERO)
         costs={}
         for key in COSTS:
             unresolved=sum(r.get(key+'_kg') is None for r in rows)
             cost=sum(((r.get(key+'_kg') or ZERO)*(r.get('peso') or ZERO) for r in rows),ZERO)
             costs[key]=dict(valor=None if unresolved else cost,valor_parcial=cost,
-                            media_kg=cost/weight if weight and not unresolved else None,pendentes=unresolved)
+                            media_kg=cost/weight if weight and not unresolved else None,
+                            media_disponivel_kg=cost/weight if weight else None,pendentes=unresolved)
         return dict(itens=len(rows),peso=weight,peso_excel=reference_weight,diferenca_peso=weight-reference_weight,peso_pendente=sum((r.get('peso') or ZERO for r in pending),ZERO),
             pendentes=len(pending),ausentes=len(missing),provisorios=sum(r.get('provisorio',False) for r in rows),
             divergencias=sum(r.get('divergente',False) for r in rows),
             preco_praticado_kg=gross/weight if weight and not missing and all(r.get('peso') is not None and r.get('preco_praticado_kg') is not None for r in rows) else None,
             valor_fob=value,valor_fob_parcial=partial,pm_fob_kg=value/weight if weight and value is not None else None,
+            valor_fob_disponivel=available_value if available or not rows else None,
+            pm_fob_disponivel_kg=available_value/available_weight if available_weight else None,
+            itens_sem_valor_disponivel=len(rows)-len(available),fretes_a_preencher=sum(requires_freight_fill(r) for r in rows),
             valor_fob_excel=reference,pm_fob_excel=reference/reference_weight if reference_weight else None,
             diferenca_fob=value-reference if value is not None else None,componentes=costs)
 

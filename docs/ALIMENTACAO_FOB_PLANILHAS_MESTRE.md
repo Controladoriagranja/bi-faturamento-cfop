@@ -1,5 +1,20 @@
 # Alimentação FOB por planilhas-mestre — atualização de 22/10/2026
 
+## Histórico de janeiro a outubro — atualização posterior
+
+Após nova autorização explícita, foram importados 41.750 cadastros provisórios
+`REPLICA_OUTUBRO_2026` e seus históricos, no lote
+`71635668-1c61-4af3-b587-207426dbbf9c`. Os 4.175 originais e a competência mensal
+permaneceram idênticos. Total atual: 45.925 cadastros. Pendências acumuladas de
+01/01–22/10: 3.155 itens, por consultas mensais. Detalhes, resultados reais de janeiro
+e outubro, idempotência e chamada do BAT independente estão em
+[HISTORICO_FOB_2026.md](HISTORICO_FOB_2026.md).
+
+Esta expansão não substituiu a API instalada nem o ZIP final. O novo metadado
+`resumo.cobertura_provisoria` usa o contrato JSON já existente para identificar os
+parâmetros provisórios no frontend. A API real ainda respondeu `modo=historico`;
+é necessário aplicar `FOB_MASTER_ENABLED=1` no ambiente, sem rebuild da imagem.
+
 ## Integração final com a API oficial do Anderson — concluída localmente
 
 Base exclusiva: `api_zootecnico(4).zip`, recebida do ambiente atual de 22/10/2026.

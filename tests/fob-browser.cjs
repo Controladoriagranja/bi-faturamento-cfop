@@ -7,20 +7,22 @@ const costs=['frete','comissao','adicional_comissao','contrato','contrato_admini
 const rows=Array.from({length:65},(_,i)=>{
   const pending=i<60&&i%17===0,canal=i<60?'Varejo':i<63?'Atacado':'Subprodutos';
   return {identificacao:{data:'2026-10-01',unidade_documento:i%2?'111':'10',nota_numero:String(1000+i),produto:'349',cliente:'9880',cfop:'5102'},
-    familia:i%2?'FILÉ DE PEITO':'FRANGO INTEIRO',canal,peso:'10',peso_excel:'10',preco_praticado_kg:'10',preco_fob_kg:pending?null:'9.7',valor_fob:pending?null:'97',valor_fob_excel:'97',
+    familia:i%2?'FILÉ DE PEITO':'FRANGO INTEIRO',canal,peso:'10',peso_excel:'10',preco_praticado_kg:'10',preco_fob_kg:pending?null:'9.7',valor_fob:pending?null:'97',valor_fob_excel:'97',preco_fob_disponivel_kg:pending?'9.9':'9.7',valor_fob_disponivel:pending?'99':'97',
     origem_registro:'Origem sintética de teste',origem_excel:'Referência sintética!7',status:pending?'pendente':'calculado',provisorio:i===1,
     divergencias_entrada:i===1?{frete_kg:{origem:'0.93',excel:'0.91'}}:{},pendencias:pending?['frete']:[],dados_entrada:{frete:'1'},
     componentes:Object.fromEntries(costs.map(k=>[k,{value:k==='frete'?(pending?null:'0.2'):k==='comissao'?'0.1':'0',origin:'Cadastro sintético de teste',formula:'Fórmula sintética para inspeção',status:k==='frete'&&pending?'pendente_manual':'calculado'}])),
     ...Object.fromEntries(costs.map(k=>[k+'_kg',k==='frete'?(pending?null:'0.2'):k==='comissao'?'0.1':'0']))};
 });
+// Comissão ausente não deve entrar na lista de preenchimento de frete.
+rows[17].componentes.frete.value='0.2';rows[17].frete_kg='0.2';rows[17].dados_entrada.frete_kg='0.2';rows[17].componentes.comissao.value=null;rows[17].comissao_kg=null;rows[17].pendencias=['comissao'];
 function total(list){
   const weight=list.length*10,pending=list.filter(r=>r.valor_fob===null).length,partial=list.filter(r=>r.valor_fob!==null).length*97;
   return {itens:list.length,peso:String(weight),peso_excel:String(weight),diferenca_peso:'0',peso_pendente:String(pending*10),pendentes:pending,ausentes:0,provisorios:list.filter(r=>r.provisorio).length,divergencias:list.filter(r=>Object.keys(r.divergencias_entrada||{}).length).length,preco_praticado_kg:list.length?'10':null,
-    valor_fob:pending?null:String(partial),valor_fob_parcial:String(partial),pm_fob_kg:pending||!weight?null:'9.7',valor_fob_excel:String(list.length*97),pm_fob_excel:weight?'9.7':null,diferenca_fob:pending?null:'0',
+    valor_fob:pending?null:String(partial),valor_fob_parcial:String(partial),pm_fob_kg:pending||!weight?null:'9.7',valor_fob_excel:String(list.length*97),pm_fob_excel:weight?'9.7':null,diferenca_fob:pending?null:'0',fretes_a_preencher:list.filter(r=>r.componentes.frete.value===null).length,valor_fob_disponivel:String(list.reduce((s,r)=>s+Number(r.valor_fob_disponivel),0)),pm_fob_disponivel_kg:weight?String(list.reduce((s,r)=>s+Number(r.valor_fob_disponivel),0)/weight):null,
     componentes:Object.fromEntries(costs.map(k=>[k,{valor:k==='frete'&&pending?null:'0',valor_parcial:'0',media_kg:k==='frete'?(pending?null:'0.2'):k==='comissao'?'0.1':'0',pendentes:k==='frete'?pending:0}]))};
 }
 function select(params){return rows.filter(row=>['familia','canal','unidade'].every(k=>!params.getAll(k).length||params.getAll(k).includes(k==='unidade'?row.identificacao.unidade_documento:row[k]))&&
-  (params.get('pendentes')!=='1'||row.valor_fob===null)&&(!params.get('busca')||JSON.stringify(row.identificacao).includes(params.get('busca'))));}
+  (params.get('pendentes')!=='1'||row.valor_fob===null)&&(params.get('preencher_frete')!=='1'||row.componentes.frete.value===null)&&(!params.get('busca')||JSON.stringify(row.identificacao).includes(params.get('busca'))));}
 function summary(list){
   const families=[...new Set(list.map(r=>r.familia))].sort(),channels=['Varejo','Atacado','Subprodutos'];
   return {contexto:{data_inicio:'2026-10-01',data_fim:'2026-10-04',linhas_fora_perimetro:41,consulta_nf_806684:'consulta_bruta_indisponivel'},total:total(list),
@@ -82,10 +84,18 @@ const server=http.createServer((req,res)=>{
     assert.equal(requests.slice(beforeFOB).filter(r=>r.path.includes('faturamento-nf')).length,0);
     assert.equal(await page.locator('script[src="assets/js/dashboard.js"], .details-dialog').count(),0);
     assert.equal(await page.locator('.side-nav-link[aria-current=page]').getAttribute('href'),'comparativo-fob.html');
-    assert.ok((await page.locator('#fob-cards article').first().textContent()).includes('FOB em aberto'));
+    assert.equal(await page.locator('#fob-cards article').first().locator('.fob-warning-mark').count(),1);
+    assert.ok((await page.locator('#fob-cards article').first().locator('.fob-value-warning').getAttribute('title')).includes('Preenchimento de frete: 3 itens no Fretes.xlsx'));
+    assert.ok(!(await page.locator('#fob-table tbody').textContent()).includes('Pendente'));
+    await page.locator('#fob-cards article').first().locator('.fob-value-warning').click();await detailReady();
+    assert.equal(requests.at(-1).params.get('preencher_frete'),'1');assert.equal(requests.at(-1).params.get('canal'),'Varejo');
+    assert.equal(await page.locator('#fob-items-body tr').count(),3);assert.ok((await page.locator('#fob-items-title').textContent()).includes('Fretes.xlsx'));
+    assert.ok(!(await page.locator('#fob-items-body').textContent()).includes('1017'));assert.ok(await page.locator('#fob-items-pending').isDisabled());
+    const freightDownload=page.waitForEvent('download');await page.locator('#fob-items-export').click();const freightFile=await freightDownload;const freightCSV=path.join(artifacts,'fretes-recorte-teste.csv');await freightFile.saveAs(freightCSV);assert.equal(fs.readFileSync(freightCSV,'utf8').trim().split(/\r?\n/).length,4);assert.equal(requests.at(-1).params.get('preencher_frete'),'1');
+    await page.locator('#fob-items-close').click();
     await page.locator('#fob-reference').check();assert.ok((await page.locator('#fob-cards').textContent()).includes('Diferença de peso'));
     await page.screenshot({path:path.join(artifacts,'comparativo-desktop.png'),fullPage:true});
-    await page.locator('#fob-cards article').first().getByRole('button').click();await detailReady();
+    await page.locator('#fob-cards article').first().getByRole('button',{name:'Investigar itens →',exact:true}).click();await detailReady();
     assert.equal(requests.at(-1).params.get('canal'),'Varejo');assert.equal(await page.locator('#fob-items-body tr').count(),50);
     assert.ok((await page.locator('#fob-items-body').textContent()).includes('Diferença de entrada'));
     await page.locator('#fob-items-next').click();await detailReady();assert.equal(requests.at(-1).params.get('pagina'),'2');assert.equal(await page.locator('#fob-items-body tr').count(),10);
@@ -110,7 +120,7 @@ const server=http.createServer((req,res)=>{
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     assert.ok(await page.locator('.fob-table-scroll').evaluate(e=>e.scrollWidth>e.clientWidth));
     await page.screenshot({path:path.join(artifacts,'comparativo-mobile-dark.png'),fullPage:true});
-    await page.locator('#fob-cards article').first().getByRole('button').click();await detailReady();
+    await page.locator('#fob-cards article').first().getByRole('button',{name:'Investigar itens →',exact:true}).click();await detailReady();
     assert.ok(await page.locator('.fob-dialog').evaluate(e=>e.getBoundingClientRect().right<=innerWidth));await page.keyboard.press('Escape');
     await page.getByRole('button',{name:'Abrir menu',exact:true}).click();
     await page.waitForFunction(()=>document.querySelector('.side-nav-panel').getBoundingClientRect().left>=-1);
@@ -147,7 +157,7 @@ const server=http.createServer((req,res)=>{
     fail=503;await page.locator('#fob-filters button[type=submit]').click();await page.getByText('Erro na API: 503 - Falha sintética de conexão.',{exact:true}).waitFor();
     assert.equal(await page.locator('#fob-cards article').count(),0);assert.equal(await page.locator('#fob-table tfoot tr').count(),0);
     fail=0;await page.locator('#fob-filters button[type=submit]').click();await ready();
-    delay=true;await page.locator('#fob-cards article').first().getByRole('button').click();await page.locator('#fob-items-close').click();await page.waitForTimeout(250);assert.equal(await page.locator('dialog[open]').count(),0);delay=false;
+    delay=true;await page.locator('#fob-cards article').first().getByRole('button',{name:'Investigar itens →',exact:true}).click();await page.locator('#fob-items-close').click();await page.waitForTimeout(250);assert.equal(await page.locator('dialog[open]').count(),0);delay=false;
     fail=404;await page.reload();await page.locator('#fob-status').filter({hasText:'O módulo Comparativo FOB ainda não está disponível'}).waitFor();
     fail=0;await page.goto(`http://127.0.0.1:${server.address().port}/index.html#comparativo-fob`);await page.waitForURL('**/comparativo-fob.html');await ready();
     // Todas as famílias: ordem do Excel e sobreposição do cabeçalho ao rolar nos dois eixos.
@@ -158,7 +168,7 @@ const server=http.createServer((req,res)=>{
     await grid.route('https://api-bi-granja.controladoriagb05.workers.dev/**',route=>route.fulfill({json:route.request().url().includes('/filtros')?{...options,familia:[...expectedOrder].reverse()}:summary([...orderedRows].reverse())}));
     await grid.goto(`http://127.0.0.1:${server.address().port}/comparativo-fob.html`);await grid.locator('#fob-cards article').first().waitFor();
     assert.deepEqual(await grid.locator('#fob-table tbody th button').allTextContents(),[...expectedOrder,'FAMÍLIA NOVA']);
-    assert.deepEqual((await grid.locator('#fob-table thead tr').nth(1).locator('th').allTextContents()).slice(0,4),['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Pendências']);
+    assert.deepEqual((await grid.locator('#fob-table thead tr').nth(1).locator('th').allTextContents()).slice(0,4),['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Fretes a preencher']);
     async function checkHeader(){
       await grid.locator('.fob-table-scroll').scrollIntoViewIfNeeded();
       await grid.locator('.fob-table-scroll').evaluate(e=>{e.scrollTop=300;e.scrollLeft=240;});
@@ -201,7 +211,8 @@ const server=http.createServer((req,res)=>{
     assert.match(await history.locator('#fob-table thead').innerText(),/Sem Vínculo/);
     assert.doesNotMatch(await history.locator('#fob-table tbody').innerText(),/Excel/);
     await history.locator('[data-fob-mode=costs]').click();
-    assert.match(await history.locator('#fob-table tbody').innerText(),/Pendente/);
+    assert.doesNotMatch(await history.locator('#fob-table tbody').innerText(),/Pendente/);
+    assert.ok(await history.locator('#fob-table tbody .fob-warning-mark').count()>0);
     await history.close();assert.deepEqual(errors,[]);await context.close();
     console.log('OK: ordem de famílias/colunas, cabeçalho acima das células fixas em rolagem vertical/horizontal e mobile, diferenças na auditoria; dois HTMLs, menu/ativo, filtros separados, recarga/histórico, matriz/custos, itens, CSV, ordenação, 503/404 e cancelamento. Nenhum backend/banco executado.');
   }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}

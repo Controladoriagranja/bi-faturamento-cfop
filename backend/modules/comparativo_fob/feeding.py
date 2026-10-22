@@ -5,8 +5,8 @@ from decimal import localcontext
 import os
 
 from fastapi import HTTPException
-from fob.calculator import code,item_key,decimal
-from fob.master_data import MasterCatalog,calculate_master_item,calculate_payroll,day
+from fob.calculator import code,item_key,decimal,requires_freight_fill
+from fob.master_data import MasterCatalog,calculate_master_item,calculate_payroll,day,item_identity
 from fob.master_repository import read_current,read_monthly,read_invoices,read_sales,read_status
 from fob.freight import invoice_key
 from fob.repository import read_invoice
@@ -87,6 +87,7 @@ def execute_master(service,operation,start,end,choices,search,single,reference):
             if search and search not in ' '.join(str(item.get(k) or '') for k in ('nota_numero','produto','cliente','produto_descricao')).casefold():continue
             row=calculate_master_item(item,catalog)
             row['identificacao'].update(empresa_contexto=item.get('empresa_contexto'),ano_nf=day(item['data']).year)
+            row['chave_item']=item_identity(item)
             ref=reference.index.get(item_key(item)) if exact else None
             row.update(familia=family,canal=channel,produto_descricao=item.get('produto_descricao'),
                        valor_fob_excel=ref.cached['valor_fob'] if ref else 0,
@@ -97,8 +98,10 @@ def execute_master(service,operation,start,end,choices,search,single,reference):
                 row['peso_excel']=decimal(ref.fields['peso'])
                 row['origem_excel']=ref.origin;row['formulas_excel']=ref.formulas
             if single('pendentes','0')=='1' and row.get('valor_fob') is not None:continue
+            if single('preencher_frete','0')=='1' and not requires_freight_fill(row):continue
             calculated.append(row)
         for ref in missing:
+            if single('preencher_frete','0')=='1':continue
             identity=ref.fields
             if not start<=day(identity['data'])<=end:continue
             if choices['unidade'] and code(identity['unidade_documento']) not in choices['unidade']:continue

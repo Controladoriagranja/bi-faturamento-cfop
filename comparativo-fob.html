@@ -32,13 +32,13 @@
         <div class="field"><label id="fob-channel-label">Canais de venda</label><div id="fob-filter-canal" class="checkbox-multiselect" aria-labelledby="fob-channel-label"></div></div>
         <button class="primary-button" type="submit">Consultar comparativo <span aria-hidden="true">→</span></button>
       </div>
-      <p class="fob-filter-note">Consulte o faturamento no banco desde 01/01/2026. Despesas e regras do FOB estão validadas somente de 01 a 04/10/2026, com cadastros do Excel. Nos demais períodos, peso e preço praticado são exibidos; o FOB aguarda cadastros com vigência.</p>
+      <p class="fob-filter-note">Consulte o faturamento desde 01/01/2026. Janeiro a setembro usam os cadastros históricos dos fechamentos. Valores com ! ainda têm dados a preencher.</p>
     </form>
     <p id="fob-status" class="status" role="status" aria-live="polite">Abra o comparativo para consultar os dados.</p>
     <div id="fob-alert" class="fob-alert" hidden></div>
     <details class="fob-checks filter-card">
       <summary>Por que existem pendências e valores para conferir?</summary>
-      <p><strong>Pendente:</strong> falta um dado necessário para fechar o FOB. Nas outras unidades, frete tipo 1 sem valor exige confirmação manual por NF. Em Januária, é necessário custo mensal próprio ou a referência provisória de outubro/2026. O parcial concluído não substitui o total.</p>
+      <p><strong>Valor com !:</strong> mostra o valor provisório com os custos já informados. Passe o mouse no aviso para conferir o que falta. Quando houver preenchimento de frete, clique no número para abrir os itens correspondentes no Fretes.xlsx, respeitando período, unidade, família e canal.</p>
       <p><strong>Diferença de entrada ou origem:</strong> algum dado diverge do Excel, está ausente ou tem origem provisória. Isso não significa automaticamente erro no FOB. Um item pode ter diferença e também estar pendente; as contagens não devem ser somadas.</p>
       <p><strong>Como conferir:</strong> abra os itens da família ou do canal e clique em <strong>Ver cálculo</strong>. Compare os valores de origem e do Excel, a fórmula e a origem do frete. Valide qual dado está correto antes de corrigir a fonte ou confirmar o valor manual.</p>
       <p>Os valores são cadastrados em “Preenchimento de Fretes”, na opção por NF ou “Custo Mensal Januária”. O consumo pelo FOB depende da atualização consolidada da API. Uma diferença legítima entre a origem atual e a planilha pode continuar indicada mesmo após o FOB estar calculado.</p>
@@ -51,7 +51,7 @@
         <label><input type="checkbox" id="fob-reference"> Mostrar referência Excel</label>
         <button id="fob-export" type="button" disabled>Exportar resumo CSV</button>
       </div>
-      <p class="fob-table-help">Clique em uma família ou canal para abrir os itens. “Pendente” mantém o FOB em aberto; a referência Excel é apenas comparativa.</p>
+      <p class="fob-table-help">Passe o mouse no ! para conferir o aviso. Clique no valor com aviso de frete para ver somente os itens a preencher no Fretes.xlsx. Família e canal abrem o detalhamento completo.</p>
       <div class="fob-table-scroll" tabindex="0" aria-label="Comparativo FOB; role horizontalmente para ver todos os canais">
         <table id="fob-table"><thead></thead><tbody><tr><td class="empty">Aguardando consulta do comparativo.</td></tr></tbody><tfoot></tfoot></table>
       </div>

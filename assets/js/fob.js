@@ -30,16 +30,36 @@
   function status(text,error=false){$('fob-status').textContent=text;$('fob-status').className='status '+(error?'error':'info');}
   function referenceVisible(){return $('fob-reference').checked&&payload?.contexto?.referencia_disponivel!==false;}
   function secondary(parent,text){parent.append(node('small',text,'fob-secondary'));}
+  function provisionalParameters(data=payload){
+    const context=data?.contexto||{},periods=context.ultima_importacao_valida?.resumo?.cobertura_provisoria||[];
+    return context.modo==='planilhas_mestre'&&periods.some(p=>p.origem==='REPLICA_OUTUBRO_2026'&&p.inicio<=context.data_fim&&p.fim>=context.data_inicio);
+  }
+  const itemProvisional=item=>Object.values(item.componentes||{}).some(c=>String(c?.origin||c?.origem||'').includes('REPLICA_OUTUBRO_2026'));
   function openButton(parent,text,scope){const b=node('button',text,'fob-data-button');b.type='button';b.addEventListener('click',()=>openItems(scope));parent.append(b);return b;}
+  const freightCount=group=>Number(group.fretes_a_preencher??group.componentes?.frete?.pendentes??0);
+  function valueShown(group,key){
+    if(exists(group[key]))return group[key];
+    return group[{valor_fob:'valor_fob_disponivel',pm_fob_kg:'pm_fob_disponivel_kg'}[key]]??(key==='valor_fob'?group.valor_fob_parcial:null);
+  }
+  function valueNote(group){
+    const freight=freightCount(group),other=Object.entries(group.componentes||{}).filter(([key,c])=>key!=='frete'&&c.pendentes).map(([key])=>costs[key]);
+    return ['Valor provisório: desconta somente os custos já informados.',freight?`Preenchimento de frete: ${freight} itens no Fretes.xlsx. Clique no valor para ver os itens desse recorte.`:'',other.length?'Dados a conferir: '+other.join(', ')+'.':'',group.itens_sem_valor_disponivel?`${group.itens_sem_valor_disponivel} itens sem base de valor não estão incluídos.`:''].filter(Boolean).join(' ');
+  }
+  function valueButton(parent,group,key,kind,scope){
+    const warning=group.pendentes>0,value=valueShown(group,key),freight=freightCount(group);
+    const button=openButton(parent,fmt(value,kind),{...scope,...(warning&&freight?{preencher_frete:true}:{})});
+    if(warning){button.classList.add('fob-value-warning');button.title=valueNote(group);button.setAttribute('aria-label',fmt(value,kind)+'. '+button.title);const mark=node('span','!','fob-warning-mark');mark.setAttribute('aria-hidden','true');button.append(mark);}
+    return button;
+  }
   function renderCards(){
     const frag=document.createDocumentFragment();
     for(const channel of payload.canais){
       const card=node('article',undefined,'fob-card'),heading=node('div',undefined,'fob-card-title');
-      heading.append(node('h3',channel.canal),badge(channel.pendentes?`${channel.pendentes} pendentes`:channel.itens?'Calculado':'Sem movimento',channel.pendentes?'pending':''));
+      heading.append(node('h3',channel.canal),badge(freightCount(channel)?`${freightCount(channel)} fretes a preencher`:channel.pendentes?'Dados a conferir':channel.itens?'Calculado':'Sem movimento',channel.pendentes?'pending':''));
       card.append(heading,node('strong',`${fmt(channel.peso)} kg`));
-      card.append(node('p',channel.valor_fob===null?'FOB em aberto':`FOB ${fmt(channel.valor_fob,'money')}`));
+      const amount=node('p',undefined,'fob-card-amount');amount.append(document.createTextNode('FOB '));valueButton(amount,channel,'valor_fob','money',{canal:channel.canal});card.append(amount);
       if(payload.contexto.modo==='historico')card.append(node('p',`Preço praticado: ${fmt(channel.preco_praticado_kg,'unit')} R$/kg`));
-      else if(channel.pendentes)card.append(node('p',`Parcial concluído: ${fmt(channel.valor_fob_parcial,'money')}`));
+      else if(channel.pendentes)card.append(node('p','Valor provisório; passe o mouse no ! para conferir.'));
       else card.append(node('p',`PM FOB: ${fmt(channel.pm_fob_kg,'unit')} R$/kg`));
       if(channel.provisorios)card.append(badge(`${channel.provisorios} item provisório`,'provisional'));
       if(referenceVisible()){
@@ -51,12 +71,11 @@
     $('fob-cards').replaceChildren(frag);
   }
   function matrixValues(tr,group,scope,total=false){
-    for(const [key,kind] of [['peso','number'],['valor_fob','money'],['pm_fob_kg','unit'],['pendentes','number']]){
+    for(const [key,kind] of [['peso','number'],['valor_fob','money'],['pm_fob_kg','unit'],['fretes_a_preencher','number']]){
       const td=node('td',undefined,total?'fob-total-cell':'');
       if(!group){td.textContent='—';tr.append(td);continue;}
-      const pending=group.pendentes&&['pm_fob_kg','valor_fob'].includes(key);
-      const b=openButton(td,pending?'Pendente':fmt(group[key],kind),scope);
-      if(pending)b.append(document.createTextNode(' · '+group.pendentes));
+      if(['pm_fob_kg','valor_fob'].includes(key))valueButton(td,group,key,kind,scope);
+      else openButton(td,fmt(key==='fretes_a_preencher'?freightCount(group):group[key],kind),key==='fretes_a_preencher'?{...scope,preencher_frete:true}:scope);
       if(referenceVisible()&&key==='valor_fob')secondary(td,'Excel '+fmt(group.valor_fob_excel,'money'));
       if(referenceVisible()&&key==='pm_fob_kg')secondary(td,'Excel '+fmt(group.pm_fob_excel,'unit'));
       if(key==='valor_fob'&&group.provisorios)secondary(td,`${group.provisorios} provisório`);
@@ -67,7 +86,7 @@
     const top=node('tr'),bottom=node('tr'),label=node('th','Família');label.rowSpan=2;label.scope='col';top.append(label);
     for(const channel of [...channels,'Total']){
       const th=node('th',channel);th.colSpan=4;th.scope='colgroup';top.append(th);
-      for(const text of ['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Pendências'])bottom.append(node('th',text));
+      for(const text of ['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Fretes a preencher'])bottom.append(node('th',text));
     }
     $('fob-table').tHead.replaceChildren(top,bottom);
     const body=document.createDocumentFragment();
@@ -84,13 +103,19 @@
   }
   function renderCosts(){
     const head=node('tr');
-    for(const label of ['Família','Canal','Peso (kg)','Praticado (R$/kg)',...Object.values(costs).map(n=>n+' /kg'),'PM FOB (R$/kg)','Valor FOB','Pendências'])head.append(node('th',label));
+    for(const label of ['Família','Canal','Peso (kg)','Praticado (R$/kg)',...Object.values(costs).map(n=>n+' /kg'),'PM FOB (R$/kg)','Valor FOB','Fretes a preencher'])head.append(node('th',label));
     $('fob-table').tHead.replaceChildren(head);
     const body=document.createDocumentFragment();
     function row(group,total=false){
       const tr=node('tr'),th=node('th',undefined,'fob-family');openButton(th,total?'Total':group.familia,total?{}:{familia:group.familia,canal:group.canal});tr.append(th,node('td',group.canal||'Todos'),node('td',fmt(group.peso)),node('td',fmt(group.preco_praticado_kg,'unit')));
-      for(const key of Object.keys(costs)){const c=group.componentes[key];tr.append(node('td',c.pendentes?'Pendente':fmt(c.media_kg,'unit')));}
-      tr.append(node('td',group.pendentes?'Pendente':fmt(group.pm_fob_kg,'unit')),node('td',group.pendentes?'Pendente':fmt(group.valor_fob,'money')),node('td',fmt(group.pendentes)));return tr;
+      const scope=total?{}:{familia:group.familia,canal:group.canal};
+      for(const key of Object.keys(costs)){
+        const c=group.componentes[key],td=node('td');
+        const b=openButton(td,fmt(c.media_kg??c.media_disponivel_kg,'unit'),key==='frete'?{...scope,preencher_frete:true}:scope);
+        if(c.pendentes){b.title=key==='frete'?valueNote(group):`Valor parcial; ${c.pendentes} itens aguardam ${costs[key]}.`;b.append(node('span','!','fob-warning-mark'));}
+        tr.append(td);
+      }
+      const pm=node('td'),amount=node('td'),pending=node('td');valueButton(pm,group,'pm_fob_kg','unit',scope);valueButton(amount,group,'valor_fob','money',scope);openButton(pending,fmt(freightCount(group)),{...scope,preencher_frete:true});tr.append(pm,amount,pending);return tr;
     }
     for(const group of orderedGroups())body.append(row(group));
     if(!payload.grupos.length){const tr=node('tr'),td=node('td','Nenhum item encontrado.','empty');td.colSpan=15;tr.append(td);body.append(tr);}
@@ -99,13 +124,14 @@
   function render(){
     channels.splice(0,channels.length,...new Set(['Varejo','Atacado','Subprodutos',...payload.canais.map(c=>c.canal)]));
     $('fob-reference').disabled=payload.contexto.referencia_disponivel===false;
-    document.querySelector('.fob-reference-tag').textContent=payload.contexto.modo==='planilhas_mestre'?'Planilhas-mestre · parâmetros com vigência':payload.contexto.modo==='historico'?'Histórico do banco · FOB aguarda despesas':'Referência de 01 a 04/10/2026';
+    document.querySelector('.fob-reference-tag').textContent=provisionalParameters()?'PROVISÓRIO · réplica de outubro/2026':payload.contexto.modo==='planilhas_mestre'?'Planilhas-mestre · parâmetros com vigência':payload.contexto.modo==='historico'?'Histórico do banco · FOB aguarda despesas':'Referência de 01 a 04/10/2026';
     renderCards();if(mode==='matrix')renderMatrix();else renderCosts();
     const total=payload.total,context=payload.contexto;
     const notices=[];
+    if(provisionalParameters())notices.push('PROVISÓRIO: há parâmetros REPLICA_OUTUBRO_2026 cadastrados para este período. Despesas, comissões e calendário replicados de outubro aguardam revisão nas planilhas-mestre. A origem de cada componente está em “Ver cálculo”.');
     if(context.modo==='historico'||context.modo==='planilhas_mestre')notices.push(context.observacao);
     if(total.pesos_ausentes)notices.push(`${total.pesos_ausentes} itens sem peso: o peso apresentado está incompleto.`);
-    if(total.pendentes)notices.push(`${total.pendentes} itens aguardam dados: ${fmt(total.peso_pendente)} kg. O FOB total permanece em aberto.`);
+    if(total.pendentes)notices.push(`Valores com ! são provisórios, sem os custos ainda não informados. ${freightCount(total)} itens aguardam preenchimento no Fretes.xlsx; clique no valor para consultar o recorte.`);
     if(total.ausentes)notices.push(`${total.ausentes} itens da referência não foram encontrados na origem; o peso apresentado está incompleto.`);
     if(total.provisorios)notices.push(`NF 806684: ${total.provisorios} item provisório do Excel. Conciliação: ${context.consulta_nf_806684.replaceAll('_',' ')}.`);
     if(total.divergencias)notices.push(`${total.divergencias} itens com diferença de entrada ou origem em relação ao Excel. Esse aviso pode coincidir com uma pendência. Abra “Ver cálculo” nos itens para comparar os valores.`);
@@ -126,7 +152,7 @@
       const result=await apiGet(APP_CONFIG.fob.resumo,params,{signal:summaryController.signal});
       if(own!==summarySeq)return;
       if(!Array.isArray(result.grupos)||!Array.isArray(result.familias)||!result.total)throw new Error('Resposta do comparativo inválida.');
-      payload=result;applied=structuredClone(params);state.save({applied});render();status('Comparativo atualizado. Os itens pendentes permanecem em aberto.'+(!state.matchesDraft(params)?' Há filtros alterados; consulte para aplicá-los.':''));
+      payload=result;applied=structuredClone(params);state.save({applied});render();status('Comparativo atualizado. Valores com ! têm dados a preencher.'+(!state.matchesDraft(params)?' Há filtros alterados; consulte para aplicá-los.':''));
     }catch(error){
       if(error.name==='AbortError'||own!==summarySeq)return;
       payload=null;applied=null;$('fob-cards').replaceChildren();$('fob-alert').hidden=true;
@@ -153,16 +179,16 @@
   const dialog=node('dialog',undefined,'fob-dialog');dialog.setAttribute('aria-labelledby','fob-items-title');
   dialog.innerHTML=`<div class="fob-dialog-shell"><header class="fob-dialog-header"><div><span class="eyebrow">FORMAÇÃO DO FOB POR ITEM</span><h2 id="fob-items-title"></h2><p id="fob-items-context"></p></div><button id="fob-items-close" type="button">← Voltar ao comparativo</button></header><div class="fob-dialog-tools"><label><input id="fob-items-pending" type="checkbox">Somente pendentes</label><form id="fob-items-search"><input id="fob-items-query" type="search" maxlength="200" placeholder="NF, produto ou cliente" aria-label="Buscar itens"><button>Buscar</button></form><button type="button" id="fob-items-export">Exportar itens CSV</button></div><p id="fob-items-status" role="status" aria-live="polite"></p><div class="fob-items-scroll" tabindex="0" aria-label="Itens e componentes do FOB"><table><thead id="fob-items-head"></thead><tbody id="fob-items-body"></tbody></table></div><footer class="fob-dialog-footer"><button type="button" id="fob-items-prev">← Anterior</button><span id="fob-items-page"></span><button type="button" id="fob-items-next">Próxima →</button></footer></div>`;
   document.body.append(dialog);
-  const itemColumns=[['data','Data'],['unidade_documento','Unidade'],['nota_numero','NF'],['cliente','Cliente'],['produto','Produto'],['familia','Família'],['canal','Canal'],['peso','Peso'],['preco_praticado_kg','Praticado/kg'],...Object.entries(costs).map(([k,v])=>[k+'_kg',v+'/kg']),['preco_fob_kg','FOB/kg'],['valor_fob','Valor FOB']];
+  const itemColumns=[['data','Data'],['empresa_contexto','Empresa'],['unidade_documento','Unidade'],['serie','Série'],['nota_numero','NF'],['cliente','Cliente'],['produto','Produto'],['familia','Família'],['canal','Canal'],['peso','Peso'],['preco_praticado_kg','Praticado/kg'],...Object.entries(costs).map(([k,v])=>[k+'_kg',v+'/kg']),['preco_fob_kg','FOB/kg'],['valor_fob','Valor FOB']];
   let detail=null,detailPayload=null,detailController,exportController,detailSeq=0,detailLoaded=false,exporting=false;
-  function detailParams(page=detail.pagina,size=50){return {...detail.base,familia:detail.familia?[detail.familia]:detail.base.familia,canal:detail.canal?[detail.canal]:detail.base.canal,pendentes:$('fob-items-pending').checked?'1':'0',busca:detail.busca,pagina:page,por_pagina:size,ordenar_por:detail.sort,ordem:detail.direction};}
+  function detailParams(page=detail.pagina,size=50){return {...detail.base,familia:detail.familia?[detail.familia]:detail.base.familia,canal:detail.canal?[detail.canal]:detail.base.canal,pendentes:$('fob-items-pending').checked?'1':'0',...(detail.preencher_frete?{preencher_frete:'1'}:{}),busca:detail.busca,pagina:page,por_pagina:size,ordenar_por:detail.sort,ordem:detail.direction};}
   function closeItems(){detailController?.abort();exportController?.abort();detailSeq++;exporting=false;if(dialog.open)dialog.close();}
   function openItems(scope){
     if(!applied)return;
     detail={...scope,base:structuredClone(applied),pagina:1,busca:'',sort:'nota_numero',direction:'asc'};
-    $('fob-items-title').textContent=[scope.familia,scope.canal].filter(Boolean).join(' · ')||'Todos os itens do comparativo';
-    $('fob-items-context').textContent=`${date(applied.data_inicio)} a ${date(applied.data_fim)} · Valores e fontes por item`;
-    $('fob-items-pending').checked=false;$('fob-items-query').value='';dialog.showModal();loadItems();
+    $('fob-items-title').textContent=(scope.preencher_frete?'Fretes.xlsx — itens a preencher · ':'')+([scope.familia,scope.canal].filter(Boolean).join(' · ')||'Todos os itens do comparativo');
+    $('fob-items-context').textContent=`${date(applied.data_inicio)} a ${date(applied.data_fim)} · ${scope.preencher_frete?'Mesmos itens de frete para preenchimento, dentro do recorte clicado':'Valores e fontes por item'}`;
+    $('fob-items-pending').checked=Boolean(scope.preencher_frete);$('fob-items-pending').disabled=Boolean(scope.preencher_frete);$('fob-items-query').value='';dialog.showModal();loadItems();
   }
   function auditRow(item,cols){
     const tr=node('tr',undefined,'fob-item-audit'),td=node('td');td.colSpan=cols;
@@ -188,8 +214,13 @@
     const body=document.createDocumentFragment();
     for(const item of detailPayload.linhas){
       const tr=node('tr');
-      for(const [key] of itemColumns){let value=item[key]??item.identificacao?.[key];const text=key==='data'?date(value):['produto','cliente','unidade_documento','nota_numero','familia','canal'].includes(key)?String(value??'—'):value===null||value===undefined?(key.endsWith('_kg')||key==='valor_fob'?'Pendente':'—'):fmt(value,key==='valor_fob'?'money':key.endsWith('_kg')?'unit':'number');tr.append(node('td',text));}
-      const state=node('td');state.append(badge(item.valor_fob===null?'Pendente':'Calculado',item.valor_fob===null?'pending':''));if(item.provisorio)state.append(badge('Provisório','provisional'));tr.append(state);
+      for(const [key] of itemColumns){
+        let value=item[key]??item.identificacao?.[key],warning=false;
+        if(!exists(value)&&['preco_fob_kg','valor_fob'].includes(key)){value=item[key==='valor_fob'?'valor_fob_disponivel':'preco_fob_disponivel_kg'];warning=exists(value);}
+        const text=key==='data'?date(value):['produto','cliente','empresa_contexto','serie','unidade_documento','nota_numero','familia','canal'].includes(key)?String(value??'—'):value===null||value===undefined?(key==='frete_kg'&&detail.preencher_frete?'A preencher':'—'):fmt(value,key==='valor_fob'?'money':key.endsWith('_kg')?'unit':'number');
+        const td=node('td',text);if(warning){td.append(node('span','!','fob-warning-mark'));td.title='Valor provisório, sem os custos ainda não informados. Preencha o frete no Fretes.xlsx.';}tr.append(td);
+      }
+      const state=node('td');state.append(badge(detail.preencher_frete?'Preencher frete':item.valor_fob===null?'Dados a conferir':'Calculado',item.valor_fob===null?'pending':''));if(item.provisorio)state.append(badge('Provisório','provisional'));tr.append(state);
       if(Object.keys(item.divergencias_entrada||{}).length)state.append(badge('Diferença de entrada','review'));
       const action=node('td'),button=node('button','Ver cálculo');button.type='button';button.setAttribute('aria-expanded','false');
       button.addEventListener('click',()=>{const expanded=button.getAttribute('aria-expanded')==='true';button.setAttribute('aria-expanded',String(!expanded));button.textContent=expanded?'Ver cálculo':'Fechar cálculo';if(expanded)tr.nextElementSibling?.remove();else tr.after(auditRow(item,itemColumns.length+2));});action.append(button);tr.append(action);body.append(tr);
@@ -209,28 +240,29 @@
       const result=await apiGet(APP_CONFIG.fob.detalhes,detailParams(),{signal:detailController.signal});if(own!==detailSeq)return;
       if(!Array.isArray(result.linhas)||!Number.isSafeInteger(result.total_registros))throw new Error('Resposta de itens inválida.');detailPayload=result;
       const pages=Math.max(1,Math.ceil(result.total_registros/50));if(detail.pagina>pages){detail.pagina=pages;return loadItems();}
-      renderItems();detailLoaded=true;itemPagination();$('fob-items-status').textContent=`${fmt(result.total.peso)} kg · ${result.total.pendentes} pendentes · Abra “Ver cálculo” para conferir as origens.`;
+      renderItems();detailLoaded=true;itemPagination();$('fob-items-status').textContent=`${fmt(result.total.peso)} kg · ${detail.preencher_frete?`${result.total_registros} itens a preencher no Fretes.xlsx`:result.total.pendentes+' itens com dados a conferir'} · Abra “Ver cálculo” para conferir as origens.`;
     }catch(error){if(error.name!=='AbortError'&&own===detailSeq)$('fob-items-status').textContent=error.message;}
   }
   function csv(value){let text=value===null||value===undefined?'':String(value);if(/^\s*[=+@-]/.test(text)&&!/^-[0-9]+(?:\.[0-9]+)?$/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
   function download(lines,name){const url=URL.createObjectURL(new Blob(['\uFEFF',lines.map(r=>r.map(csv).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=node('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   $('fob-export').addEventListener('click',()=>{
     if(!payload)return;
-    const headers=['Família','Canal','Peso kg','Praticado kg',...Object.values(costs).map(c=>c+' kg'),'PM FOB kg','Valor FOB','Parcial calculado','Pendências','Provisórios','Referência Excel'];
-    const rows=orderedGroups().map(g=>[g.familia,g.canal,g.peso,g.preco_praticado_kg,...Object.keys(costs).map(k=>g.componentes[k].media_kg),g.pm_fob_kg,g.valor_fob,g.valor_fob_parcial,g.pendentes,g.provisorios,g.valor_fob_excel]);
-    rows.push(['Total','',payload.total.peso,payload.total.preco_praticado_kg,...Object.keys(costs).map(k=>payload.total.componentes[k].media_kg),payload.total.pm_fob_kg,payload.total.valor_fob,payload.total.valor_fob_parcial,payload.total.pendentes,payload.total.provisorios,payload.total.valor_fob_excel]);
+    const headers=['Família','Canal','Peso kg','Praticado kg',...Object.values(costs).map(c=>c+' kg'),'PM FOB disponível kg','Valor FOB disponível','Parcial concluído','Fretes a preencher','Provisórios','Referência Excel','Aviso','Parâmetros provisórios no período'];
+    const summaryRow=g=>[g.familia||'Total',g.canal||'',g.peso,g.preco_praticado_kg,...Object.keys(costs).map(k=>g.componentes[k].media_kg??g.componentes[k].media_disponivel_kg),valueShown(g,'pm_fob_kg'),valueShown(g,'valor_fob'),g.valor_fob_parcial,freightCount(g),g.provisorios,g.valor_fob_excel,g.pendentes?valueNote(g):''];
+    const rows=orderedGroups().map(summaryRow);rows.push(summaryRow(payload.total));
+    rows.forEach(row=>row.push(provisionalParameters()?'REPLICA_OUTUBRO_2026':'Não'));
     download([headers,...rows],`comparativo-fob-${applied.data_inicio}-${applied.data_fim}.csv`);
   });
   $('fob-items-export').addEventListener('click',async()=>{
     if(exporting){exportController.abort();exporting=false;$('fob-items-export').textContent='Exportar itens CSV';$('fob-items-status').textContent='Exportação cancelada.';return;}
     if(!detailLoaded)return;exporting=true;exportController=new AbortController();const signal=exportController.signal,own=detailSeq;$('fob-items-export').textContent='Cancelar exportação';
-    const lines=[[...itemColumns.map(c=>c[1]),'Estado','Provisório','Origem','Referência Excel']];
+    const lines=[[...itemColumns.map(c=>c[1]),'Estado','Provisório','Origem','Referência Excel','Parâmetros provisórios do item','Chave do item Fretes.xlsx','Aviso do valor']];
     try{
       let count=null;
       for(let page=1;;page++){
         const data=await apiGet(APP_CONFIG.fob.detalhes,detailParams(page,500),{signal});if(own!==detailSeq||signal.aborted)return;
         if(count===null)count=data.total_registros;if(count!==data.total_registros)throw new Error('A fonte mudou durante a exportação. Repita a consulta.');
-        for(const item of data.linhas)lines.push([...itemColumns.map(([k])=>item[k]??item.identificacao?.[k]??null),item.status,item.provisorio?'Sim':'Não',item.origem_registro,item.valor_fob_excel]);
+        for(const item of data.linhas)lines.push([...itemColumns.map(([k])=>item[k]??item.identificacao?.[k]??(k==='valor_fob'?item.valor_fob_disponivel:k==='preco_fob_kg'?item.preco_fob_disponivel_kg:null)),item.status,item.provisorio?'Sim':'Não',item.origem_registro,item.valor_fob_excel,itemProvisional(item)?'REPLICA_OUTUBRO_2026':'Não',item.chave_item,item.valor_fob===null?'Valor provisório, sem os custos ainda não informados':'']);
         $('fob-items-status').textContent=`Exportando ${lines.length-1} de ${count} itens…`;
         if(page*500>=count)break;if(!data.linhas.length)throw new Error('Página incompleta na exportação.');
       }
