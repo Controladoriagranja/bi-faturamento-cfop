@@ -1,0 +1,162 @@
+GRANJA BRASÍLIA  |  COMPARATIVO FOB
+Guia operacional - 22/10/2026
+1
+Atualizar os valores
+do Comparativo FOB
+Guia operacional | 22/10/2026
+Fretes.xlsx, Despesas.xlsx e Comissoes.xlsx, do preenchimento à consulta no Portal.
+Fluxo: preencher e fechar as planilhas → validar e importar com o robô → PostgreSQL → API do Anderson →
+consultar novamente no Portal.
+Salvar o Excel não envia os dados sozinho. A execução automática após o faturamento ainda não foi
+vinculada a um atualizador oficial confirmado.
+1 | Abra os arquivos oficiais da rede
+No Explorador de Arquivos, use esta pasta. Edite os arquivos existentes, mantendo seus nomes:
+\\192.168.1.139\Controladoria\BI_Granja\Planilhas_Faturamento_Cfop
+Cabeçalhos na linha 5; lançamentos a partir da linha 6. Mantenha as abas e colunas. Códigos, NF e série devem
+continuar como texto, com zeros à esquerda. Digite valores, sem fórmulas ou links externos.
+2 | Fretes.xlsx: preencha na aba certa
+Pendências é consulta automática. Localize a nota e confira empresa, unidade, série, número e ano. Se a
+situação for REVISAR_IDENTIFICACAO, encaminhe a inconsistência ao responsável; não tente resolver trocando
+pesos ou identificadores.
+Para informar o total do frete da NF, abra Preenchimentos e use uma única linha por nota, mesmo que a
+nota tenha vários itens:
+A a I: copie os identificadores, a assinatura e os pesos da nota, da aba Pendências. Na coluna F (chave_item),
+apague somente o conteúdo dessa célula, pois o preenchimento será da NF inteira.
+J (escopo): NF.
+K (modalidade): TOTAL.
+L (valor): informe o total do frete em R$. Esta é a coluna amarela.
+M (observacao): acrescente uma referência, se necessário.
+Exemplo ilustrativo: NF com 2.000 kg e frete total de R$ 1.000,00: registre NF / TOTAL / 1000,00. O motor
+calcula R$ 0,50/kg pelo peso integral da nota. Não repita R$ 1.000,00 em cada item.
+Se o valor já for por kg, use KG. Para frete de um item, use ITEM e mantenha a chave do item. Não combine NF
+e ITEM na mesma nota. Frete deve ser positivo; valor vazio não importa um novo valor nem apaga o anterior.
+
+
+GRANJA BRASÍLIA  |  COMPARATIVO FOB
+Guia operacional - 22/10/2026
+2
+Despesas e comissões
+3 | Despesas.xlsx: Cadastros
+Procure a regra existente pelo registro, tipo, unidade e seleção de cliente, rede ou demais dimensões. Confira a
+vigência inicio / fim antes de alterar valores.
+tipo: contrato, contrato_administracao, logistica_reversa, pallet ou descarga.
+modalidade: KG (R$/kg) ou PERCENTUAL (fração).
+valor / divisor: mantenha a unidade do cadastro. Exemplo: valor 30 e divisor 1000 representam R$ 0,03/kg na
+modalidade KG.
+ativo: SIM ou NAO. origem: registre a referência da alteração.
+Para percentuais, 3% corresponde a 0,03 (ou célula Excel realmente formatada como 3%). Não digite 3 para
+representar 3%. Campo vazio e zero explícito têm significados diferentes.
+Para corrigir a mesma regra, preserve seu identificador registro. Para uma nova vigência, use identificador novo
+e exclusivo e encerre a vigência anterior sem sobreposição para a mesma seleção. Evite apagar linhas: isso não
+exclui automaticamente o cadastro já importado.
+4 | Despesas.xlsx: Custo Mensal Januária
+O frete da unidade 102 fica nesta aba, não no Fretes.xlsx.
+competencia: primeiro dia do mês, por exemplo 01/11/2026.
+custo_kg: custo fixo em R$/kg, com até 10 casas decimais.
+origem: referência de onde veio o valor.
+Use uma linha por competência. O custo do mês vale para todos os tipos de frete de Januária e substitui o frete
+original. Sem cadastro próprio do mês, o motor utiliza outubro/2026 como provisório; sem esse cadastro
+também, o custo fica pendente. Zero explícito é aceito no custo mensal.
+5 | Comissoes.xlsx: mantenha os parâmetros reais
+Percentuais: comissão e adicional de comissão; confira registro, vigência, unidade/dimensões, modalidade,
+valor, divisor, ativo e origem.
+Vendedores: códigos do vendedor e gestores, salário, prêmio, percentuais, modo do adicional, DSR, base de
+encargos, calendário e encargos.
+Gestores: código do registro, nível, base manual ou parâmetros de folha, calendário, vigência e origem.
+Em adicional_modo = UM_DOZE, o motor deriva o percentual dividido por 12. Em DIGITADO, utiliza o
+adicional informado. As opções DSR e base de encargos usam SIM/NAO. Não replique percentuais em campos
+de R$ ou vice-versa.
+Janeiro a setembro usam cadastros provisórios REPLICA_OUTUBRO_2026. A folha foi replicada com 26 dias
+úteis / 5 domingos-feriados e dias do mês ajustados, conforme autorizado. Substitua por parâmetros reais
+quando disponíveis; não trate esses meses como calendário já homologado.
+Ao terminar: salve e feche os três arquivos, inclusive em outros computadores. Avise ao operador quais
+períodos e cadastros foram alterados.
+
+
+GRANJA BRASÍLIA  |  COMPARATIVO FOB
+Guia operacional - 22/10/2026
+3
+Executar o robô
+Responsável: operador da atualização. Os comandos abaixo usam o Prompt de Comando (CMD) e a
+instalação atual deste computador. Não são passos para a funcionária dentro do Excel.
+Execute após confirmar o sucesso da atualização do faturamento e com as três planilhas fechadas. A conexão
+local e o ator técnico já devem estar configurados; nenhuma senha deve ser inserida nestes comandos. Este
+guia não executa importações.
+6. Entre na pasta backend
+Abra o CMD e execute:
+cd /d "C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend"
+7. Valide as três planilhas
+Este comando lê os arquivos e confere o formato, sem gravar no PostgreSQL:
+python -B -m alimentacao_fob
+Continue somente se retornar ok: true. Havendo erro, corrija a aba/linha indicada, salve, feche e repita a
+validação.
+8. Gere a prévia e os backups
+A prévia compara os cadastros com o banco e guarda cópias privadas. Ainda não grava valores financeiros:
+python -B -m alimentacao_fob --preparar-importacao
+Confira o resumo de inclusões e alterações e o custo mensal, se houver. Obtenha a aprovação do responsável.
+Se alguém editar uma planilha depois, gere e confira uma nova prévia.
+9. Importe o que foi aprovado
+Somente depois da aprovação da prévia:
+python -B -m alimentacao_fob --sincronizar
+Espere o término e confira ok: true. modo: sincronizacao indica o processamento do lote; modo:
+sem_alteracoes indica que não havia mudanças a aplicar. Guarde o resumo/lote retornado. Não feche a janela
+antes de conferir o resultado.
+10. Atualize a lista de pendências do período
+Depois de importar os fretes, atualize as competências corrigidas. Exemplo para janeiro/2026 (o ^ continua o
+comando na próxima linha do CMD):
+python -B -m alimentacao_fob --atualizar-pendencias ^
+  --inicio 2026-01-01 --fim 2026-01-31
+Troque as datas pelo mês necessário e repita para os demais. Cada chamada aceita até 32 dias inclusivos. Essa
+etapa atualiza só Pendências; preserva Preenchimentos e não importa custos. A lista só deixa de mostrar um
+preenchimento quando ele já foi efetivado no banco.
+
+
+GRANJA BRASÍLIA  |  COMPARATIVO FOB
+Guia operacional - 22/10/2026
+4
+Conferir no Portal
+11. Consulte novamente o Comparativo FOB
+Entre no Portal com sua conta, abra Comparativo PM FOB, selecione o período, a unidade e os demais filtros e
+clique em Consultar comparativo.
+Não há upload manual de Excel no Portal. A API lê o PostgreSQL e calcula o FOB com os cadastros vigentes.
+Atualizar planilhas não exige publicar o frontend nem reconstruir o Docker a cada alteração.
+12. Confira uma nota que você acabou de preencher
+Abra a família/canal e localize a NF no detalhamento. Em Ver cálculo, confira o frete utilizado, a origem do
+cadastro, o peso integral da NF e o valor por kg. Para TOTAL/NF, o frete por kg deve corresponder ao total
+informado dividido pelo peso integral da nota.
+O motor substitui o frete aplicável, sem somar original e manual. O custo fixo de Januária tem prioridade na
+unidade 102. Confira também comissão, contrato, logística reversa, pallet e descarga quando essas planilhas
+tiverem sido alteradas.
+Nem todo aviso é frete manual. Comissão/despesa ausente, identificação ambígua ou frete inválido de
+outra natureza podem continuar pendentes. Preencher Fretes.xlsx resolve apenas os casos elegíveis, sem
+transformar dados faltantes em zero.
+Se os números não mudarem
+Situação
+O que conferir
+Excel salvo, Portal igual
+Confirme que a sincronização terminou com ok: true. Salvar o arquivo sozinho não
+importa.
+Cadastro importado, Portal
+igual
+Anderson deve confirmar FOB_MASTER_ENABLED=1 na API instalada. A última
+verificação documentada ainda indicava modo historico; este guia não reconferiu a API
+real.
+Arquivo aberto / indisponível
+Salve e feche o Excel em todas as máquinas. Só então repita a operação.
+Assinatura divergente / revisar
+identificação
+A nota original pode ter mudado. Atualize as pendências e peça revisão do vínculo; não
+altere a assinatura manualmente.
+Regra sobreposta / duplicada
+Confira registro, vigência e dimensões. Não crie dois fretes NF/ITEM para a mesma nota.
+Troca de escopo já importado exige revisão técnica.
+Pendência histórica ainda
+listada
+A rotina diária consulta só a janela recente (14 dias por padrão). Atualize o mês antigo
+explicitamente após a importação.
+Automação preparada, ligação futura
+O arquivo backend/alimentacao_fob/atualizar_fob.bat já existe e exige o argumento --faturamento-ok. Foi
+preparado para ser chamado depois do sucesso do atualizador oficial, que ainda precisa ser identificado. Essa
+rotina faz janela recente, prévia/backup e sincronização; não há agendamento confirmado por este guia.
+Logs da rotina diária: %LOCALAPPDATA%\GranjaBrasilia\FOB\logs (ou FOB_ESTADO_DIR configurado). Se a
+rotina não concluir, guarde o resumo do erro para o responsável e não considere os novos valores publicados.
