@@ -73,6 +73,7 @@
   function matrixValues(tr,group,scope,total=false){
     for(const [key,kind] of [['peso','number'],['valor_fob','money'],['pm_fob_kg','unit'],['fretes_a_preencher','number']]){
       const td=node('td',undefined,total?'fob-total-cell':'');
+      if(key==='fretes_a_preencher')td.classList.add('fob-group-end');
       if(!group){td.textContent='—';tr.append(td);continue;}
       if(['pm_fob_kg','valor_fob'].includes(key))valueButton(td,group,key,kind,scope);
       else openButton(td,fmt(key==='fretes_a_preencher'?freightCount(group):group[key],kind),key==='fretes_a_preencher'?{...scope,preencher_frete:true}:scope);
@@ -82,11 +83,20 @@
       tr.append(td);
     }
   }
+  function tableColumns(columns){
+    const table=$('fob-table'),group=node('colgroup');
+    const widths={weight:106,amount:154,price:130,pending:132,channel:150,cost:120};
+    let width=0;
+    for(const type of columns){group.append(node('col',undefined,'fob-col-'+type));width+=widths[type]||0;}
+    table.querySelector('colgroup')?.remove();table.prepend(group);
+    table.style.width=`calc(var(--fob-family-width) + ${width}px)`;
+  }
   function renderMatrix(){
-    const top=node('tr'),bottom=node('tr'),label=node('th','Família');label.rowSpan=2;label.scope='col';top.append(label);
+    tableColumns(['family',...Array.from({length:channels.length+1},()=>['weight','amount','price','pending']).flat()]);
+    const top=node('tr'),bottom=node('tr'),label=node('th','Família','fob-family-heading');label.rowSpan=2;label.scope='col';top.append(label);
     for(const channel of [...channels,'Total']){
-      const th=node('th',channel);th.colSpan=4;th.scope='colgroup';top.append(th);
-      for(const text of ['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Fretes a preencher'])bottom.append(node('th',text));
+      const th=node('th',channel,'fob-channel-heading');th.colSpan=4;th.scope='colgroup';top.append(th);
+      for(const text of ['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Fretes a preencher']){const cell=node('th',text,text==='Fretes a preencher'?'fob-group-end':undefined);cell.scope='col';bottom.append(cell);}
     }
     $('fob-table').tHead.replaceChildren(top,bottom);
     const body=document.createDocumentFragment();
@@ -95,15 +105,16 @@
       for(const channel of channels)matrixValues(tr,payload.grupos.find(g=>g.familia===family.familia&&g.canal===channel),{familia:family.familia,canal:channel});
       matrixValues(tr,family,{familia:family.familia},true);body.append(tr);
     }
-    if(!payload.familias.length){const tr=node('tr'),td=node('td','Nenhum item encontrado para os filtros.','empty');td.colSpan=17;tr.append(td);body.append(tr);}
+    if(!payload.familias.length){const tr=node('tr'),td=node('td','Nenhum item encontrado para os filtros.','empty');td.colSpan=1+(channels.length+1)*4;tr.append(td);body.append(tr);}
     $('fob-table').tBodies[0].replaceChildren(body);
     const total=node('tr');total.append(node('th','Total','fob-family'));
     for(const channel of channels)matrixValues(total,payload.canais.find(g=>g.canal===channel),{canal:channel});
     matrixValues(total,payload.total,{},true);$('fob-table').tFoot.replaceChildren(total);
   }
   function renderCosts(){
+    tableColumns(['family','channel','weight','price',...Object.keys(costs).map(()=>'cost'),'price','amount','pending']);
     const head=node('tr');
-    for(const label of ['Família','Canal','Peso (kg)','Praticado (R$/kg)',...Object.values(costs).map(n=>n+' /kg'),'PM FOB (R$/kg)','Valor FOB','Fretes a preencher'])head.append(node('th',label));
+    for(const label of ['Família','Canal','Peso (kg)','Praticado (R$/kg)',...Object.values(costs).map(n=>n+' /kg'),'PM FOB (R$/kg)','Valor FOB','Fretes a preencher']){const th=node('th',label,label==='Família'?'fob-family-heading':undefined);th.scope='col';head.append(th);}
     $('fob-table').tHead.replaceChildren(head);
     const body=document.createDocumentFragment();
     function row(group,total=false){
@@ -127,15 +138,6 @@
     document.querySelector('.fob-reference-tag').textContent=provisionalParameters()?'PROVISÓRIO · réplica de outubro/2026':payload.contexto.modo==='planilhas_mestre'?'Planilhas-mestre · parâmetros com vigência':payload.contexto.modo==='historico'?'Histórico do banco · FOB aguarda despesas':'Referência de 01 a 04/10/2026';
     renderCards();if(mode==='matrix')renderMatrix();else renderCosts();
     const total=payload.total,context=payload.contexto;
-    const notices=[];
-    if(provisionalParameters())notices.push('PROVISÓRIO: há parâmetros REPLICA_OUTUBRO_2026 cadastrados para este período. Despesas, comissões e calendário replicados de outubro aguardam revisão nas planilhas-mestre. A origem de cada componente está em “Ver cálculo”.');
-    if(context.modo==='historico'||context.modo==='planilhas_mestre')notices.push(context.observacao);
-    if(total.pesos_ausentes)notices.push(`${total.pesos_ausentes} itens sem peso: o peso apresentado está incompleto.`);
-    if(total.pendentes)notices.push(`Valores com ! são provisórios, sem os custos ainda não informados. ${freightCount(total)} itens aguardam preenchimento no Fretes.xlsx; clique no valor para consultar o recorte.`);
-    if(total.ausentes)notices.push(`${total.ausentes} itens da referência não foram encontrados na origem; o peso apresentado está incompleto.`);
-    if(total.provisorios)notices.push(`NF 806684: ${total.provisorios} item provisório do Excel. Conciliação: ${context.consulta_nf_806684.replaceAll('_',' ')}.`);
-    if(total.divergencias)notices.push(`${total.divergencias} itens com diferença de entrada ou origem em relação ao Excel. Esse aviso pode coincidir com uma pendência. Abra “Ver cálculo” nos itens para comparar os valores.`);
-    $('fob-alert').textContent=notices.join(' ');$('fob-alert').hidden=!notices.length;
     $('fob-period').textContent=`${date(context.data_inicio)} a ${date(context.data_fim)}`;
     $('fob-source').textContent=context.modo==='planilhas_mestre'?'PostgreSQL · Planilhas-mestre com vigência · Sem arredondamento intermediário':context.modo==='historico'?'PostgreSQL · Despesas históricas ainda não cadastradas · Canal do cadastro atual':'PostgreSQL · Cadastros iniciais do Excel · Sem arredondamento intermediário';
     $('fob-count').textContent=context.modo==='historico'||context.modo==='planilhas_mestre'?`${fmt(total.itens)} itens no período consultado`:`${fmt(total.itens)} itens · ${fmt(context.linhas_fora_perimetro)} fora do perímetro na base de referência`;
@@ -155,7 +157,7 @@
       payload=result;applied=structuredClone(params);state.save({applied});render();status('Comparativo atualizado. Valores com ! têm dados a preencher.'+(!state.matchesDraft(params)?' Há filtros alterados; consulte para aplicá-los.':''));
     }catch(error){
       if(error.name==='AbortError'||own!==summarySeq)return;
-      payload=null;applied=null;$('fob-cards').replaceChildren();$('fob-alert').hidden=true;
+      payload=null;applied=null;$('fob-cards').replaceChildren();
       const tr=node('tr'),td=node('td','Consulta indisponível. Confira a mensagem acima.','empty');td.colSpan=17;tr.append(td);$('fob-table').tBodies[0].replaceChildren(tr);$('fob-table').tFoot.replaceChildren();$('fob-period').textContent='—';$('fob-count').textContent='—';status(error.message,true);
     }finally{if(own===summarySeq)$('view-comparativo-fob').setAttribute('aria-busy','false');}
   }
@@ -243,30 +245,67 @@
       renderItems();detailLoaded=true;itemPagination();$('fob-items-status').textContent=`${fmt(result.total.peso)} kg · ${detail.preencher_frete?`${result.total_registros} itens a preencher no Fretes.xlsx`:result.total.pendentes+' itens com dados a conferir'} · Abra “Ver cálculo” para conferir as origens.`;
     }catch(error){if(error.name!=='AbortError'&&own===detailSeq)$('fob-items-status').textContent=error.message;}
   }
-  function csv(value){let text=value===null||value===undefined?'':String(value);if(/^\s*[=+@-]/.test(text)&&!/^-[0-9]+(?:\.[0-9]+)?$/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
-  function download(lines,name){const url=URL.createObjectURL(new Blob(['\uFEFF',lines.map(r=>r.map(csv).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=node('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   $('fob-export').addEventListener('click',()=>{
-    if(!payload)return;
-    const headers=['Família','Canal','Peso kg','Praticado kg',...Object.values(costs).map(c=>c+' kg'),'PM FOB disponível kg','Valor FOB disponível','Parcial concluído','Fretes a preencher','Provisórios','Referência Excel','Aviso','Parâmetros provisórios no período'];
-    const summaryRow=g=>[g.familia||'Total',g.canal||'',g.peso,g.preco_praticado_kg,...Object.keys(costs).map(k=>g.componentes[k].media_kg??g.componentes[k].media_disponivel_kg),valueShown(g,'pm_fob_kg'),valueShown(g,'valor_fob'),g.valor_fob_parcial,freightCount(g),g.provisorios,g.valor_fob_excel,g.pendentes?valueNote(g):''];
-    const rows=orderedGroups().map(summaryRow);rows.push(summaryRow(payload.total));
-    rows.forEach(row=>row.push(provisionalParameters()?'REPLICA_OUTUBRO_2026':'Não'));
-    download([headers,...rows],`comparativo-fob-${applied.data_inicio}-${applied.data_fim}.csv`);
+    if(!payload||!applied)return;
+    const button=$('fob-export');button.disabled=true;button.textContent='Gerando CSV…';
+    try{
+      const provisional=provisionalParameters()?'REPLICA_OUTUBRO_2026':'Não';
+      let headers,rows,numeric;
+      if(mode==='matrix'){
+        headers=['Família'];numeric=[];
+        for(const channel of [...channels,'Total']){
+          const start=headers.length;
+          headers.push(...['Peso (kg)','Faturamento FOB','PM FOB (R$/kg)','Fretes a preencher'].map(label=>channel+' - '+label));
+          numeric.push(start,start+1,start+2,start+3);
+          if(referenceVisible()){numeric.push(headers.length,headers.length+1);headers.push(channel+' - FOB Excel',channel+' - PM FOB Excel');}
+          headers.push(channel+' - Aviso');
+        }
+        const groups=new Map(payload.grupos.map(g=>[JSON.stringify([g.familia,g.canal]),g]));
+        rows=[...orderedFamilies(),{...payload.total,familia:'Total',total:true}].map(family=>{
+          const row=[family.familia];
+          for(const channel of [...channels,'Total']){
+            const group=channel==='Total'?family:family.total?payload.canais.find(c=>c.canal===channel):groups.get(JSON.stringify([family.familia,channel]));
+            row.push(group?.peso??null,group?valueShown(group,'valor_fob'):null,group?valueShown(group,'pm_fob_kg'):null,group?freightCount(group):null);
+            if(referenceVisible())row.push(group?.valor_fob_excel,group?.pm_fob_excel);
+            row.push(group?.pendentes?valueNote(group):'');
+          }
+          return [...row,provisional];
+        });
+      }else{
+        headers=['Família','Canal','Peso kg','Praticado kg',...Object.values(costs).map(c=>c+' kg'),'PM FOB disponível kg','Valor FOB disponível','Parcial concluído','Fretes a preencher','Provisórios','Aviso'];
+        numeric=Array.from({length:15},(_,i)=>i+2);
+        if(referenceVisible()){numeric.push(headers.length);headers.push('Referência Excel');}
+        rows=[...orderedGroups(),payload.total].map(g=>{
+          const row=[g.familia||'Total',g.canal||'Todos',g.peso,g.preco_praticado_kg,...Object.keys(costs).map(k=>g.componentes?.[k]?.media_kg??g.componentes?.[k]?.media_disponivel_kg),valueShown(g,'pm_fob_kg'),valueShown(g,'valor_fob'),g.valor_fob_parcial,freightCount(g),g.provisorios,g.pendentes?valueNote(g):''];
+          if(referenceVisible())row.push(g.valor_fob_excel);
+          return [...row,provisional];
+        });
+      }
+      headers.push('Parâmetros provisórios no período');
+      const output=CsvExport.writer(headers,numeric);output.append(rows);
+      output.download(`${mode==='matrix'?'comparativo':'composicao'}-fob-${applied.data_inicio}-${applied.data_fim}.csv`);
+      status(`CSV exportado com ${fmt(rows.length)} linhas, conforme a visão exibida.`);
+    }catch(error){status('Não foi possível exportar o resumo: '+error.message,true);}
+    finally{button.disabled=!payload?.grupos.length;button.textContent='Exportar resumo CSV';}
   });
   $('fob-items-export').addEventListener('click',async()=>{
     if(exporting){exportController.abort();exporting=false;$('fob-items-export').textContent='Exportar itens CSV';$('fob-items-status').textContent='Exportação cancelada.';return;}
     if(!detailLoaded)return;exporting=true;exportController=new AbortController();const signal=exportController.signal,own=detailSeq;$('fob-items-export').textContent='Cancelar exportação';
-    const lines=[[...itemColumns.map(c=>c[1]),'Estado','Provisório','Origem','Referência Excel','Parâmetros provisórios do item','Chave do item Fretes.xlsx','Aviso do valor']];
+    const columns=[...itemColumns],query=structuredClone(detailParams(1,500));
+    const numeric=columns.flatMap(([key],i)=>key==='peso'||key==='valor_fob'||key.endsWith('_kg')?[i]:[]);numeric.push(columns.length+3);
+    const output=CsvExport.writer([...columns.map(c=>c[1]),'Estado','Provisório','Origem','Referência Excel','Parâmetros provisórios do item','Chave do item Fretes.xlsx','Aviso do valor'],numeric);
+    const filename=`itens-fob-${detail.base.data_inicio}-${detail.base.data_fim}.csv`;
+    $('fob-items-status').textContent='Preparando exportação dos itens…';
     try{
-      let count=null;
-      for(let page=1;;page++){
-        const data=await apiGet(APP_CONFIG.fob.detalhes,detailParams(page,500),{signal});if(own!==detailSeq||signal.aborted)return;
-        if(count===null)count=data.total_registros;if(count!==data.total_registros)throw new Error('A fonte mudou durante a exportação. Repita a consulta.');
-        for(const item of data.linhas)lines.push([...itemColumns.map(([k])=>item[k]??item.identificacao?.[k]??(k==='valor_fob'?item.valor_fob_disponivel:k==='preco_fob_kg'?item.preco_fob_disponivel_kg:null)),item.status,item.provisorio?'Sim':'Não',item.origem_registro,item.valor_fob_excel,itemProvisional(item)?'REPLICA_OUTUBRO_2026':'Não',item.chave_item,item.valor_fob===null?'Valor provisório, sem os custos ainda não informados':'']);
-        $('fob-items-status').textContent=`Exportando ${lines.length-1} de ${count} itens…`;
-        if(page*500>=count)break;if(!data.linhas.length)throw new Error('Página incompleta na exportação.');
-      }
-      if(lines.length-1!==count)throw new Error('Quantidade de itens alterada. Repita a consulta.');download(lines,`itens-fob-${detail.base.data_inicio}-${detail.base.data_fim}.csv`);$('fob-items-status').textContent=`${count} itens exportados.`;
+      await CsvExport.pages({total:detailPayload.total_registros,signal,cached:detailPayload,
+        request:(pagina,por_pagina,pageSignal)=>apiGet(APP_CONFIG.fob.detalhes,{...query,pagina,por_pagina},{signal:pageSignal}),
+        onPage:items=>{
+          output.append(items.map(item=>[...columns.map(([k])=>item[k]??item.identificacao?.[k]??(k==='valor_fob'?item.valor_fob_disponivel:k==='preco_fob_kg'?item.preco_fob_disponivel_kg:null)),item.status,item.provisorio?'Sim':'Não',item.origem_registro,item.valor_fob_excel,itemProvisional(item)?'REPLICA_OUTUBRO_2026':'Não',item.chave_item,item.valor_fob===null?'Valor provisório, sem os custos ainda não informados':'']));
+          if(own===detailSeq&&!signal.aborted)$('fob-items-status').textContent=`Exportando ${fmt(output.count)} de ${fmt(detailPayload.total_registros)} itens…`;
+        }
+      });
+      if(own!==detailSeq||signal.aborted)return;
+      output.download(filename);$('fob-items-status').textContent=`${fmt(output.count)} itens exportados.`;
     }catch(error){if(error.name!=='AbortError'&&own===detailSeq)$('fob-items-status').textContent=error.message;}
     finally{if(own===detailSeq&&exportController.signal===signal){exporting=false;$('fob-items-export').textContent='Exportar itens CSV';}}
   });

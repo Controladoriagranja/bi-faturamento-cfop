@@ -151,34 +151,24 @@ const FaturamentoDetails = (() => {
     } catch(error) {if(error.name!=="AbortError" && own===generation)message(error.message,true);}
     finally {if(own===generation)dialog.setAttribute("aria-busy","false");}
   }
-  function csv(value) {
-    let text=value==null ? "" : String(value);
-    // Evita fórmulas executáveis ao abrir o CSV em uma planilha.
-    if (/^[\s]*[=+@-]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) text="'"+text;
-    return '"'+text.replaceAll('"','""')+'"';
-  }
   async function exportCsv() {
     if(exporting){cancelExport();message("Exportação cancelada.");return;}
     if(!loaded || !payload.total_registros)return;
     exporting=true;exportController=new AbortController();const signal=exportController.signal, own=generation;
     $("export").textContent="Cancelar exportação";
-    const columns=visibleColumns(), lines=[columns.map(c=>csv(labels[c]||c)).join(";")];
+    const columns=visibleColumns(), query=structuredClone(params(1,500));
+    const numericColumns=columns.flatMap((c,i)=>decimals.has(c)||['qtde_itens','qtde_produtos_distintos'].includes(c)?[i]:[]);
+    const output=CsvExport.writer(columns.map(c=>labels[c]||c),numericColumns);
+    const filename=`faturamento-${state.visao}-${state.filtros.data_inicio}-${state.filtros.data_fim}.csv`;
+    message("Preparando CSV…");
     try {
-      let total=null;
-      for(let page=1; ;page++) {
-        const result=await apiGet(APP_CONFIG.endpoints.detalhes,params(page,500),{signal});
-        if(own!==generation || signal.aborted)return;
-        if(total===null)total=result.total_registros;
-        if(result.total_registros!==total)throw new Error("A fonte mudou durante a exportação. Consulte novamente e repita.");
-        for(const item of result.linhas)lines.push(columns.map(c=>csv(item[c])).join(";"));
-        message(`Exportando ${integer.format(lines.length-1)} de ${integer.format(total)} registros…`);
-        if(page*500>=total)break;
-        if(!result.linhas.length)throw new Error("A API retornou uma página incompleta. Repita a consulta.");
-      }
-      if(lines.length-1!==total)throw new Error("A fonte mudou durante a exportação. Consulte novamente e repita.");
-      const url=URL.createObjectURL(new Blob(["\uFEFF",lines.join("\r\n")],{type:"text/csv;charset=utf-8"}));
-      const link=document.createElement("a");link.href=url;link.download=`faturamento-${state.visao}-${state.filtros.data_inicio}-${state.filtros.data_fim}.csv`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-      message(`CSV exportado com ${integer.format(total)} registros.`);
+      await CsvExport.pages({total:payload.total_registros,signal,cached:payload,
+        request:(pagina,por_pagina,pageSignal)=>apiGet(APP_CONFIG.endpoints.detalhes,{...query,pagina,por_pagina},{signal:pageSignal}),
+        onPage:rows=>{output.append(rows.map(item=>columns.map(c=>item[c])));if(own===generation&&!signal.aborted)message(`Exportando ${integer.format(output.count)} de ${integer.format(payload.total_registros)} registros…`);}
+      });
+      if(own!==generation||signal.aborted)return;
+      output.download(filename);
+      message(`CSV exportado com ${integer.format(output.count)} registros.`);
     } catch(error) {if(error.name!=="AbortError" && own===generation)message(error.message,true);}
     finally {if(own===generation && exportController.signal===signal){exporting=false;$("export").textContent="Exportar CSV";}}
   }

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from .planilhas import locked,read_bundle
-from .importador import import_bundle,Unchanged,record_rejection
+from .importador import record_rejection
 from .configuracao import load_config,connect,safe_error
 
 DEFAULT_FOLDER=r'\\192.168.1.139\Controladoria\BI_Granja\Planilhas_Faturamento_Cfop'
@@ -19,7 +19,8 @@ def main(argv=None):
     parser.add_argument('--config',type=Path,help='Configuração privada; padrão alimentacao_fob/.env.local.')
     parser.add_argument('--pasta',type=Path)
     actions=parser.add_mutually_exclusive_group()
-    actions.add_argument('--sincronizar',action='store_true',help='Escreve somente os cadastros, em lote único transacional.')
+    actions.add_argument('--sincronizar',action='store_true',help='Prévia, backup, alterações transacionais e baixa das pendências preenchidas.')
+    actions.add_argument('--atualizar-recentes',action='store_true',help='Somente pendências da janela recente; não importa custos.')
     actions.add_argument('--atualizar-pendencias',action='store_true',help='Consulta PostgreSQL e atualiza só a aba automática.')
     actions.add_argument('--conferir-banco',action='store_true',help='Confere identidade, tabelas e privilégios com SELECTs.')
     actions.add_argument('--preparar-importacao',action='store_true',help='Prévia e backup privado; nenhuma escrita PostgreSQL.')
@@ -41,6 +42,14 @@ def main(argv=None):
         parser.error('Recuperação exige --inicio/--fim válidos; as consultas são mensais.')
     contents={};files={};result={}
     try:
+        if args.sincronizar or args.atualizar_recentes:
+            from .rotina import synchronize,recent,log_result
+            if args.inicio or args.fim:raise ValueError('Use --atualizar-pendencias para um intervalo explícito.')
+            result=synchronize(args.pasta) if args.sincronizar else dict(
+                modo='pendencias_recentes',pendencias=recent(args.pasta,int(os.environ.get('FOB_JANELA_DIAS','14'))))
+            ok=not result.get('pendencias_falhas')
+            log_result(dict(ok=ok,**result))
+            print(json.dumps(dict(ok=ok,**result),ensure_ascii=False));return 0 if ok else 1
         if args.publicar_historico:
             from .historico import publish_history
             result=publish_history(args.pasta,args.publicar_historico,args.calendario_replica)
@@ -61,14 +70,17 @@ def main(argv=None):
                     report=refresh_window(args.pasta,start,end);reports.append(report)
                     print(json.dumps(dict(ok=True,etapa='pendencias_mensais',**report),ensure_ascii=False),flush=True)
                 result=dict(modo='recuperacao_pendencias' if args.recuperar_pendencias else 'atualizacao_pendencias',meses=reports)
-            log_result(dict(ok=True,**result))
-            print(json.dumps(dict(ok=True,**result),ensure_ascii=False));return 0
+            ok=not result.get('pendencias_falhas')
+            log_result(dict(ok=ok,**result))
+            print(json.dumps(dict(ok=ok,**result),ensure_ascii=False));return 0 if ok else 1
         if args.conferir_banco:
             from .verificacao import inspect_database
             with connect() as conn:
                 with conn.transaction():
                     conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
                     result=inspect_database(conn)
+            from .rotina import log_result
+            log_result(dict(ok=True,modo='conferencia_somente_leitura',tabelas_conferidas=len(result['tabelas'])))
             print(json.dumps(dict(ok=True,modo='conferencia_somente_leitura',**result),ensure_ascii=False));return 0
         with ExitStack() as stack:
             for name in ('Fretes.xlsx','Despesas.xlsx','Comissoes.xlsx'):
@@ -85,25 +97,21 @@ def main(argv=None):
                         plan=build_plan(conn,rules,monthly,files,os.environ.get('FOB_ROBOT_ACTOR_ID',''))
                 target=save_plan(plan,contents)
                 result=dict(modo='previa_sem_escrita_postgresql',plano=str(target),**plan['resumo'])
-            if args.sincronizar:
-                actor=os.environ.get('FOB_ROBOT_ACTOR_ID','')
-                with connect('FOB_PG_WRITE_DSN',True) as conn:
-                    try:result=dict(modo='sincronizacao',**import_bundle(conn,rules,monthly,files,actor))
-                    except Unchanged as unchanged:result=dict(modo='sem_alteracoes',**unchanged.summary)
+        from .rotina import log_result
+        log_result(dict(ok=True,**result))
         print(json.dumps(dict(ok=True,**result),ensure_ascii=False))
         return 0
     except Exception as error:
         # Nunca imprimir DSN, senha, argumentos SQL ou dados salariais.
         message=safe_error(error)
-        if args.rotina_diaria or args.recuperar_pendencias or args.atualizar_pendencias:
-            from .rotina import log_result
-            try:log_result(dict(ok=False,erro=message))
-            except OSError:pass
-        if args.sincronizar:
+        from .rotina import log_result
+        try:log_result(dict(ok=False,erro=message))
+        except OSError:pass
+        if args.sincronizar and not result.get('banco_confirmado'):
             try:
                 with connect('FOB_PG_WRITE_DSN',True) as conn:record_rejection(conn,files,message)
             except Exception:message+=' Não foi possível registrar a rejeição no PostgreSQL.'
-        print(json.dumps(dict(ok=False,erro=message),ensure_ascii=False))
+        print(json.dumps(dict(ok=False,erro=message,**result),ensure_ascii=False))
         return 1
 
 

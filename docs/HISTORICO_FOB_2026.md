@@ -141,3 +141,137 @@ segunda preparação encontrou zero registros novos. Teste de acumulação confi
 que janeiro/fevereiro preservam outubro, Preenchimentos não é serializada e uma
 reconsulta idêntica não muda bytes. Sintaxe Python/JavaScript conferida. Não foram
 repetidas baterias extensas, executados extratores, migrações, deploy ou Docker.
+
+## Operação conferida em 26/10/2026
+
+Esta seção substitui as instruções operacionais anteriores do BAT. O frontend e
+as fórmulas financeiras não foram alterados nesta rodada.
+
+**Instalação comprovada:** MDE-100154, usuário vchaves, nesta pasta do projeto.
+Preparado `backend/.venv-fob` (Python 3.12.14, openpyxl 3.1.5, psycopg 3.3.6).
+O ambiente é local e ignorado pelo Git. O BAT usa seu Python por caminho relativo;
+`FOB_PYTHON` pode indicar outro executável por caminho absoluto. As credenciais
+continuam somente em `backend/alimentacao_fob/.env.local`, ignorado pelo Git.
+Nenhuma ACL ou permissão Windows foi alterada.
+
+Conexão real autenticada ao bi_granja por SELECT, com transaction_read_only=on.
+Lidos e validados os três Excel oficiais: 51.890 cadastros, dos quais 47.545 ativos,
+e uma competência de Januária (outubro/2026). Prévia: zero novos, zero alterados,
+51.890 inalterados e nenhuma mudança mensal. Continuam três lotes, 51.890 cadastros,
+89.465 históricos de cadastro e um histórico mensal; nenhuma escrita PostgreSQL
+foi executada nesta conferência. Nenhum frete mestre importado existia nessa leitura.
+
+**Teste real A:** janela 20–26/10, 28 itens de nove NFs, sem revisão de identificação.
+Pendências acumuladas: 3.155 → 3.086. Somente o XML da aba Pendências mudou; os
+demais membros do XLSX, incluindo Preenchimentos, permaneceram idênticos. Datas
+fora da janela preservadas e chaves sem duplicidades. Repetição sem alteração.
+Backup antes da troca em `.backups/Fretes.20261026T113527635300Z.85c7003665ce.bak`,
+na pasta oficial. Não foi criada uma NF fictícia para testar uma nova pendência.
+
+**Teste B:** prévia somente leitura, backups dos três arquivos e estado do banco
+conferidos. Plano privado em
+`%LOCALAPPDATA%/GranjaBrasilia/FOB/20261026T113542819432Z-03ed05bd/plano-importacao.json`.
+BAT `--validar` executado com sucesso, sem Python no PATH. Não houve nova escrita
+financeira para simular uma importação; a importação efetiva anterior consta nos
+três lotes existentes. A API real respondeu HTTP 401; consumo autenticado do
+Portal e FOB_MASTER_ENABLED permanecem pendentes por decisão do usuário.
+O fluxo corrigido também foi executado com os arquivos reais e qualquer conexão
+de escrita explicitamente bloqueada: retornou `sem_alteracoes`, sem novo lote,
+sem backup repetido e com contagens/versões do banco idênticas.
+
+**Teste C e correções locais:** seis testes focados em cópias/conexões simuladas
+aprovaram arquivo aberto/bloqueado, XLSX inválido, mudança após a prévia, ausência
+de conexão de escrita quando nada mudou, importação antes da baixa de pendências
+antigas e recuperação da baixa em execução posterior. Não houve testes salariais
+em logs nem alteração financeira real nesses testes.
+Uma execução real do CLI sobre cópias temporárias inválidas foi rejeitada antes
+de acessar o banco e gerou `ok=false` no log. A validação agora informa o nome do
+XLSX corrompido, em vez de mostrar somente o tipo genérico BadZipFile.
+
+### Comandos do mesmo BAT
+
+A partir da raiz do projeto, sem executar Python manualmente:
+
+```bat
+backend\alimentacao_fob\atualizar_fob.bat --validar
+backend\alimentacao_fob\atualizar_fob.bat --sincronizar
+```
+
+`--sincronizar` deve ser usado somente para alterações autorizadas das planilhas.
+Valida os três arquivos, compara com o banco, salva prévia e backups antes de
+alterações, importa transacionalmente apenas as diferenças e registra histórico.
+Sem alterações, não abre conexão de escrita nem cria novo lote/backup completo.
+Depois confirma as pendências das NFs preenchidas, inclusive antigas, consultando
+somente as datas correspondentes, agrupadas por mês. Não reprocessa o ano inteiro.
+Se a baixa no Excel falhar após o commit, `banco_confirmado=true` e
+`pendencias_falhas` distinguem o banco já atualizado da publicação ainda pendente.
+A execução seguinte tenta a baixa mesmo sem nova mudança de cadastro.
+
+Após sucesso do atualizador oficial de faturamento, a integração proposta é:
+
+```bat
+rem Inserir apenas no ramo de sucesso, adaptando o caminho à máquina real.
+call "C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend\alimentacao_fob\atualizar_fob.bat" --faturamento-ok
+if errorlevel 1 exit /b %errorlevel%
+```
+
+Esse modo atualiza somente Pendências dos últimos 14 dias (FOB_JANELA_DIAS), sem
+importar custos. `--rotina-diaria` continua disponível no módulo por compatibilidade:
+sincroniza primeiro e atualiza a janela recente depois. Não depende da página
+retirada Custos e Pendências. O Portal consulta a API; não abre os Excel da rede.
+
+### Automação preparada, ainda não ativada
+
+Nenhuma tarefa FOB foi encontrada no Agendador local. A tarefa existente `Teste`
+executa o agente do Portal, não este robô, e foi preservada. Consulta às tarefas
+do Anderson retornou acesso negado; C$ indisponível e WinRM sem resposta. Portanto,
+não foi possível confirmar instalação, Python, conta ou chamada pós-faturamento
+naquela máquina. Nenhum atualizador foi modificado.
+
+`backend/alimentacao_fob/agendamento-desativado.xml` está preparado para UMA tarefa
+`GranjaBrasilia-FOB-Mestres` neste MDE-100154, conta Windows vchaves, a cada 15 minutos
+das 07h às 19h, com sessão Windows aberta, rede disponível e sem instâncias
+sobrepostas. A ação é o BAT `--sincronizar`. O XML permanece `Enabled=false` e não
+foi registrado. O computador precisa permanecer ligado/acordado; não há promessa
+de execução no Anderson. Não registrar duas cópias do robô em máquinas diferentes.
+
+Somente depois de autorizar a ativação local, estes comandos PowerShell registram
+e habilitam a tarefa revisada (não contêm senha):
+
+```powershell
+$fobTaskName = 'GranjaBrasilia-FOB-Mestres'
+if (Get-ScheduledTask -TaskName $fobTaskName -ErrorAction SilentlyContinue) {
+    throw 'Já existe tarefa FOB: revisar antes de substituir.'
+}
+$fobXml = Get-Content '.\backend\alimentacao_fob\agendamento-desativado.xml' -Raw -Encoding UTF8
+Register-ScheduledTask -TaskName $fobTaskName -Xml $fobXml -ErrorAction Stop
+Enable-ScheduledTask -TaskName $fobTaskName -ErrorAction Stop
+Get-ScheduledTaskInfo -TaskName $fobTaskName
+```
+
+Para instalação definitiva no Anderson, antes é necessário identificar a pasta e
+o atualizador realmente utilizados, preparar o Python/dependências naquela máquina
+e conferir acesso com a conta Windows de execução. Recriar seu ambiente virtual
+com `backend/requirements-alimentacao-fob.txt`; não copiar o `.venv-fob` deste PC
+nem publicar `.env.local`. Revisar os caminhos/conta do XML antes de habilitá-lo.
+
+### Falhas e operação diária
+
+A funcionária salva e fecha os arquivos. Edita Fretes/Preenchimentos, cadastros e
+competências de Despesas, vendedores/gestores/percentuais de Comissoes, mantendo
+chaves e vigências. Editar ou salvar o Excel sozinho não importa nada enquanto
+o agendamento não estiver ativo. Depois de uma sincronização confirmada, o Portal
+obtém os dados novos na próxima consulta autenticada, se o modo mestre estiver ativo.
+
+Logs sem salários/DSN: `%LOCALAPPDATA%/GranjaBrasilia/FOB/logs/AAAA-MM-DD.jsonl`
+(datas UTC), ou `FOB_ESTADO_DIR/logs`. `ok=false` indica falha; em falha após commit,
+verificar também `banco_confirmado` e `pendencias_falhas` antes de repetir.
+BAT retorna 64 para uso incorreto, 69 para Python/dependências ausentes e 1 para
+falha operacional; 0 confirma a operação pedida. Falhas de Python anteriores à
+execução do módulo aparecem na mensagem do BAT/resultado do Agendador.
+
+Se Excel estiver aberto, não fechar à força: pedir que a funcionária salve/feche e
+repetir o mesmo BAT, ou aguardar a próxima tentativa agendada. Corrigir arquivo
+inválido na origem; não apagar cadastros no banco. Exclusão de linha ou valor de
+frete deixado em branco não revoga cadastro importado. O último lote válido e os
+históricos são preservados. Não repetir migrações, cargas anuais ou Docker.

@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 import xml.etree.ElementTree as ET
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipFile, ZIP_DEFLATED, BadZipFile
 
 from fob.master_data import DIMENSIONS, digest, invoice_key, validate_rules
 from fob.calculator import decimal
@@ -124,6 +124,12 @@ def payroll_params(row):
 
 
 def read_bundle(contents):
+    for name in ('Fretes.xlsx','Despesas.xlsx','Comissoes.xlsx'):
+        try:
+            with ZipFile(BytesIO(contents[name])) as archive:
+                if archive.testzip() is not None:raise BadZipFile()
+        except BadZipFile:
+            raise ValueError('Arquivo XLSX inválido: '+name+'. Corrija ou restaure uma cópia válida antes de repetir.') from None
     rules=[];monthly=[]
     for r in table(contents['Despesas.xlsx'],'Cadastros',RULE_HEADERS):
         item=base_rule(r,'Despesas.xlsx')

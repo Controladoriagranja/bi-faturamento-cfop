@@ -1,11 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>FOB: modelo desativado, sem gatilhos. Definir conta técnica, frequência e habilitar somente após homologação e autorização da primeira importação. Ação inicial: somente validar as planilhas.</Description>
+    <Description>FOB: proposta DESATIVADA para MDE-100154/vchaves. Sincronizar os três mestres a cada 15 minutos, 07h–19h, somente com sessão Windows aberta. Não registra tarefa por si só. Habilitar apenas após autorização; o pós-faturamento usa separadamente o mesmo BAT com --faturamento-ok.</Description>
   </RegistrationInfo>
-  <Triggers />
+  <Triggers>
+    <CalendarTrigger>
+      <Repetition><Interval>PT15M</Interval><Duration>PT12H</Duration><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>
+      <StartBoundary>2026-10-26T07:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
   <Principals>
     <Principal id="Robot">
+      <UserId>MDE-100154\vchaves</UserId>
       <LogonType>InteractiveToken</LogonType>
       <RunLevel>LeastPrivilege</RunLevel>
     </Principal>
@@ -14,16 +22,16 @@
     <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
     <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-    <StartWhenAvailable>false</StartWhenAvailable>
+    <StartWhenAvailable>true</StartWhenAvailable>
     <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
     <Enabled>false</Enabled>
-    <Hidden>true</Hidden>
+    <Hidden>false</Hidden>
     <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>
   </Settings>
   <Actions Context="Robot">
     <Exec>
-      <Command>C:\Users\vchaves\AppData\Local\Programs\Python\Python314\python.exe</Command>
-      <Arguments>-B -m alimentacao_fob --config "C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend\alimentacao_fob\.env.local"</Arguments>
+      <Command>C:\Windows\System32\cmd.exe</Command>
+      <Arguments>/d /c ""C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend\alimentacao_fob\atualizar_fob.bat" --sincronizar"</Arguments>
       <WorkingDirectory>C:\Users\vchaves\Documents\GitHub\bi-faturamento-cfop\backend</WorkingDirectory>
     </Exec>
   </Actions>

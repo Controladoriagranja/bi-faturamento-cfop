@@ -6,6 +6,7 @@ artifacts/
 .env.*
 # Credenciais locais do robô FOB: nunca versionar.
 backend/alimentacao_fob/.env.local
+backend/.venv-fob/
 tests/
 # Modelos operacionais contêm parâmetros de folha: não publicar no frontend.
 outputs/fob-mestres-20261021/
