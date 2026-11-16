@@ -79,7 +79,7 @@ def detalhes(context, request):
     selected_where = where + ((' AND ' if where else ' WHERE ') + ' AND '.join(clauses) if clauses else '')
     prefix = 'WITH selecionadas AS MATERIALIZED (SELECT n.* FROM {source} n ' + selected_where + '), '
     source = sql.Identifier(CONFIG['bi']['schema'], CONFIG['bi']['table'])
-    items = sql.Identifier('comercial', 'vw_faturamento_cfop_filtrado')
+    items = sql.Identifier('comercial', 'vw_faturamento_vendedor_pai_itens')
 
     stats_sql = '''estatisticas AS (
         SELECT COUNT(*) AS qtde_nfs,
@@ -145,6 +145,10 @@ def detalhes(context, request):
     query = sql.SQL(body).format(source=source, items=items)
     try:
         with context.banco() as conn:
+            if view == 'itens':
+                # Evita revarrer os itens para cada NF em fontes com baixa estimativa.
+                # SET LOCAL vale somente nesta transacao de leitura.
+                conn.execute('SET LOCAL enable_nestloop = off')
             stats = conn.execute(query, params).fetchone()
     except psycopg.Error as error:
         logger.exception('Erro no detalhamento CFOP: SQLSTATE=%s, visao=%s', error.sqlstate, view)

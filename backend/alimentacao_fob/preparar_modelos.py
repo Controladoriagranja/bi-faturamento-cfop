@@ -1,9 +1,11 @@
 """Extrai só cadastros necessários da referência. Nunca importa faturamento semanal."""
 import argparse
+from calendar import monthrange
 from datetime import date,timedelta
 from decimal import Decimal
 import json
 from pathlib import Path
+import re
 
 from fob.reference import cell_value,formula
 from fob.workbook import extract
@@ -14,7 +16,11 @@ from .planilhas import (RULE_HEADERS,PAYROLL_HEADERS,MANAGER_HEADERS,MONTH_HEADE
 START='2026-10-01';END='2026-10-04'
 
 
-def seed(path):
+def seed(path,start=START,end=END,manager_prefix='gestor:'):
+    first,last=date.fromisoformat(start),date.fromisoformat(end)
+    period_start,period_end=start,end
+    if first>last or (first.year,first.month)!=(last.year,last.month):
+        raise ValueError('O preparo dos parâmetros exige uma única competência.')
     sheets=extract(path,['Comiss','Despesas'],1150)
     commission=next(s for s in sheets if s.startswith('Comiss'))
     c=sheets[commission];d=sheets['Despesas'];rules=[];percent=[];vendors=[];managers=[];warnings=[]
@@ -25,8 +31,18 @@ def seed(path):
         return decimal(value) if value not in (None,'') else blank
     def add(reg,kind,value,origin,mode='KG',divisor=1,**dims):
         target=percent if kind in ('comissao','adicional_comissao') else rules
-        target.append(dict(registro=reg,inicio=START,fim=END,tipo=kind,modalidade=mode,
+        target.append(dict(registro=reg,inicio=period_start,fim=period_end,tipo=kind,modalidade=mode,
                            valor=value,divisor=divisor,ativo='SIM',origem=origin,**dims))
+    vendor_rows=sorted(int(n) for n,row in c['rows'].items()
+        if re.fullmatch(r'[0-9]+',str(cell_value(row,'E') or '')) and cell_value(row,'F')
+        and 'Faturamento' in formula(c,int(n),'L'))
+    if not vendor_rows:raise ValueError('Tabela de vendedores não identificada na Comissão.')
+    manager_rows=[]
+    for n in sorted(map(int,c['rows'])):
+        if n<=max(vendor_rows) or not v(c,n,'F'):continue
+        try:salary=decimal(v(c,n,'H'))
+        except ArithmeticError:continue
+        if salary is not None:manager_rows.append(n)
     # Totais X/AE são entradas manuais: não reinterpretar as anotações de U:W.
     for kind,keycol,valcol,begin,end,label in [
         ('contrato','Z','AE',4,724,'cliente'),('contrato','S','X',4,161,'rede'),
@@ -70,11 +86,11 @@ def seed(path):
                 f'Despesas!Q{n}=P{n}/12','PERCENTUAL',divisor=12,unidade_documento='102')
     # Os vínculos dos gestores eram por nome; os novos modelos usam códigos opacos.
     names={}
-    for n in range(103,112):
-        if v(c,n,'F'):names.setdefault(str(v(c,n,'F')),'gestor:'+str(n))
+    for n in manager_rows:
+        if v(c,n,'F'):names.setdefault(str(v(c,n,'F')),manager_prefix+str(n))
     charges=[manual(c,3,col) for col in ('R','S','T','U','V','W','X','Y','Z','AA','AB')]
-    common=dict(inicio=START,fim=END,dias_uteis=manual(c,2,'H'),domingos_feriados=manual(c,3,'H'),
-                dias_mes=Decimal(31),dias_periodo=Decimal(4),ativo='SIM',**dict(zip(CHARGES,charges)))
+    common=dict(inicio=period_start,fim=period_end,dias_uteis=manual(c,2,'H'),domingos_feriados=manual(c,3,'H'),
+                dias_mes=Decimal(monthrange(first.year,first.month)[1]),dias_periodo=Decimal((last-first).days+1),ativo='SIM',**dict(zip(CHARGES,charges)))
     # Dias são documentados pelo recorte de outubro; não copiar K2/K3 como regra futura.
     def flags(n):
         result={}
@@ -86,7 +102,7 @@ def seed(path):
             elif not expression and manual(c,n,col)==0:result[key]='NAO'
             else:raise ValueError(f'{commission}!{col}{n}: regra não suportada.')
         return result
-    for n in range(5,100):
+    for n in vendor_rows:
         seller=v(c,n,'E')
         if seller in (None,''):continue
         row=dict(common,**flags(n),registro='folha:'+code(seller),vendedor=code(seller),origem=f'{commission}!H:K{n}; N:AK derivadas')
@@ -103,12 +119,13 @@ def seed(path):
             row[key]=names.get(name,'')
             if name and name not in names:warnings.append(f'{commission}!{col}{n}: gestor não encontrado; IFERROR original=0.')
         vendors.append(row)
-    for n in range(103,112):
+    for n in manager_rows:
         name=str(v(c,n,'F') or '')
         if name not in names:continue
         row=dict(common,**flags(n),registro=names[name],origem=f'{commission}!{n}; AE recalculado')
         base_formula=formula(c,n,'L')
-        level=next((i for i,col in enumerate(('B','C','D'),1) if f'${col}$4:${col}$99' in base_formula),None)
+        level=next((i for i,col in enumerate(('B','C','D'),1)
+                    if re.search(r'\$'+col+r'\$4:\$'+col+r'\$[0-9]+',base_formula)),None)
         if level is None:
             warnings.append(f'{commission}!L{n}: base de equipe não comprovada; gestor pendente.');continue
         row['nivel']=level

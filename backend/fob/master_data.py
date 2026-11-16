@@ -100,6 +100,8 @@ def validate_rules(rules):
             if str(row['dimensoes']['unidade_documento'])=='102':raise ValueError('Januária tem frete fixo mensal.')
             if row['modalidade']=='TOTAL_ITEM' and 'chave_item' not in row['dimensoes']:
                 raise ValueError('Frete de item exige chave_item.')
+            if 'substituir_original' in row.get('parametros',{}) and not isinstance(row['parametros']['substituir_original'],bool):
+                raise ValueError('Prioridade do frete final deve ser booleana.')
         if set(row['dimensoes'])-set((*DIMENSIONS,'empresa_contexto','serie','nota_numero','ano_nf','chave_item')):
             raise ValueError('Dimensão desconhecida.')
     # Sobreposição com mesma seleção é erro; cliente > rede > regra geral é explícito.
@@ -194,7 +196,17 @@ class MasterCatalog:
         return out
 
     def freight(self,item,reference=None):
-        if str(item.get('unidade_documento')).strip(' ')=='102':return monthly_rate(item['data'],self.monthly)
+        if code(item.get('unidade_documento'))=='102':
+            freight_type=decimal(item.get('frete'))
+            # FaturamentoJA!AU: SE(tipo > 1; 0; custo mensal para tipo 1).
+            if freight_type is not None and freight_type>1:
+                return Rate(Decimal(0),'Regra FaturamentoJA!AU',
+                    'tipo_frete > 1: frete zero, conforme planilha', 'isento_tipo_frete',
+                    dict(tipo_frete=item.get('frete'),unidade='102'))
+            if freight_type!=1:
+                return Rate(None,'Regra FaturamentoJA!AU',
+                    'tipo de frete ausente ou sem regra comprovada','pendente_tipo_frete_januaria')
+            return monthly_rate(item['data'],self.monthly)
         key=invoice_key(item);full=self.invoices.get(key,[])
         item_id=item_identity(item)
         keyed={**item, 'ano_nf':key[4], 'chave_item':item_id}
@@ -208,7 +220,9 @@ class MasterCatalog:
         if selected:
             if len(selected)!=1:return Rate(None,'Planilha-mestre','Fretes concorrentes','pendente_ambiguidade')
             r=selected[0];p=r['parametros']
-            if full and not any(eligible(i) for i in full):selected=[] # origem já resolveu a pendência
+            # Só um cadastro FINAL explicitamente marcado pode substituir um
+            # original válido. Cadastros anteriores conservam sua precedência.
+            if full and not any(eligible(i) for i in full) and not p.get('substituir_original',False):selected=[]
             else:
                 if not full or invoice_signature(full)!=p['assinatura_nf']:
                     return Rate(None,r['origem'],'Faturamento mudou após preenchimento','revisar_identificacao')
@@ -222,7 +236,8 @@ class MasterCatalog:
                 if r['modalidade'] in ('TOTAL_NF','TOTAL_ITEM'):value=value/denominator
                 return Rate(value,r['origem'],'total / peso integral NF' if nf else 'frete exclusivo do item',
                     'planilha_mestre',dict(registro=r['registro'],versao=r.get('versao'),lote=str(r.get('lote')),
-                    peso_rateio=denominator,assinatura_nf=p['assinatura_nf'],substitui_todo_frete=True))
+                    peso_rateio=denominator,assinatura_nf=p['assinatura_nf'],substitui_todo_frete=True,
+                    substituicao_original_autorizada=p.get('substituir_original',False)))
         if eligible(item):return Rate(None,'Fretes.xlsx','Tipo 1 zero/nulo','pendente_manual')
         original=decimal(item.get('frete_kg'))
         origin=item.get('_source','comercial.vw_faturamento_cfop_filtrado')+'.frete_kg'

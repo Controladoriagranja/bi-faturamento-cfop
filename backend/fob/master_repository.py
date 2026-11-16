@@ -7,6 +7,8 @@ FIELDS = ('empresa_contexto,unidade_documento,serie,nota_numero,data,produto,cli
           'pedido,oc_principal,um,peso,frete,frete_kg,volumes,produto_descricao,redespacho,'
           'vendedor,rede,uf,familia,rota_cliente,preco_praticado,valor_total_faturado,valor_produto')
 
+SALES_VIEW = 'comercial.vw_faturamento_vendedor_pai_itens'
+
 
 def read_candidates(conn,start,end,limit=30000):
     rows=conn.execute('SELECT '+FIELDS+''' FROM comercial.vw_faturamento_cfop_filtrado
@@ -21,13 +23,18 @@ def read_candidates(conn,start,end,limit=30000):
 def read_invoices(conn,keys,limit_per_batch=20000):
     """NF integral: nenhum filtro comercial, de família, de canal ou de CFOP."""
     invoices=defaultdict(list);keys=sorted(set(keys))
-    for offset in range(0,len(keys),150):
-        batch=keys[offset:offset+150]
-        values=','.join(['(%s,%s,%s,%s,%s)']*len(batch))
-        rows=conn.execute('SELECT '+FIELDS+''' FROM comercial.faturamento_cfop
-          WHERE (empresa_contexto,btrim(unidade_documento),btrim(serie),btrim(nota_numero),
-                 extract(year FROM data)::integer) IN ('''+values+') LIMIT %s',
-          [*(v for key in batch for v in key),limit_per_batch+1]).fetchall()
+    for offset in range(0,len(keys),2000):
+        batch=keys[offset:offset+2000]
+        columns=','.join('f.'+field for field in FIELDS.split(','))
+        # Arrays mantêm o número de parâmetros fixo e evitam dezenas de viagens
+        # para uma competência com milhares de fretes. A NF continua integral.
+        rows=conn.execute('SELECT '+columns+''' FROM comercial.faturamento_cfop f
+          JOIN unnest(%s::text[],%s::text[],%s::text[],%s::text[],%s::integer[])
+            AS k(empresa,unidade,serie,nf,ano)
+          ON f.empresa_contexto=k.empresa AND btrim(f.unidade_documento)=k.unidade
+            AND btrim(f.serie)=k.serie AND btrim(f.nota_numero)=k.nf
+            AND extract(year FROM f.data)::integer=k.ano LIMIT %s''',
+          [*[list(values) for values in zip(*batch)],limit_per_batch+1]).fetchall()
         if len(rows)>limit_per_batch:raise ValueError('NF/lote excede limite de itens integrais; revisar identificação.')
         for row in rows:invoices[invoice_key(row)].append(row)
     return dict(invoices)
@@ -49,8 +56,9 @@ def read_sales(conn,start,end,limit=100000):
       FROM comercial.vendedor_grupo GROUP BY 1
     ) SELECT f.*,coalesce(nullif(f.familia,''),'Sem família') familia_grupo,
       CASE WHEN upper(btrim(f.familia))='SUBPRODUTOS' THEN 'Subprodutos'
+        WHEN ltrim(btrim(f.unidade_documento),'0')='102' THEN 'Varejo'
         ELSE coalesce(v.canal,'Não classificado') END canal_grupo
-    FROM comercial.vw_faturamento_cfop_filtrado f LEFT JOIN vendedores v
+    FROM '''+SALES_VIEW+''' f LEFT JOIN vendedores v
       ON coalesce(nullif(ltrim(btrim(f.vendedor),'0'),''),'0')=v.vendedor
     WHERE f.data>=%s AND f.data<%s ORDER BY f.data,f.id LIMIT %s''',
     [start,end+timedelta(days=1),limit+1]).fetchall()

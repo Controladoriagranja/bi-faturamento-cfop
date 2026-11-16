@@ -2,7 +2,7 @@
 from datetime import date,timedelta
 from decimal import Decimal
 from fastapi import HTTPException
-from .config import CONFIG,GROUP_ORDER,PENDING_GROUPS
+from .config import CONFIG,GROUP_ORDER,PENDING_GROUPS,UNIT_LABELS
 
 def filtros_request(request, extras=()):
     permitidos={'data_inicio','data_fim','unidade',*extras}
@@ -60,7 +60,7 @@ def payload_resumo(rows,datas,unidades):
     ordered += [grupos[k] for k in sorted(grupos)]
     return dict(grupos=ordered,total=publico(total),
       periodo=dict(data_inicio=datas[0].isoformat() if datas[0] else None,data_fim=datas[1].isoformat() if datas[1] else None),
-      unidades=unidades,fonte='comercial.vw_nf_por_vendedor_pai',versao_regras='faturamento-nf-2026-10-14')
+      unidades=unidades,fonte=CONFIG['bi']['schema']+'.'+CONFIG['bi']['table'],versao_regras='faturamento-nf-exclusoes-2026-11-16')
 
 class FaturamentoNFService:
     key=CONFIG['bi_key']
@@ -80,7 +80,7 @@ class FaturamentoNFService:
                 q=sql.SQL('SELECT DISTINCT unidade_documento FROM {} WHERE unidade_documento IS NOT NULL ORDER BY 1').format(source)
                 options=conn.execute(q).fetchall()
                 bounds=conn.execute(sql.SQL('SELECT MIN(data) AS inicio,MAX(data) AS fim FROM {}').format(source)).fetchone()
-                return dict(unidade=[dict(value=r['unidade_documento'],label='Unidade '+r['unidade_documento']) for r in options],
+                return dict(unidade=[dict(value=r['unidade_documento'],label=UNIT_LABELS.get(r['unidade_documento'],'Unidade '+r['unidade_documento'])) for r in options],
                     periodo_disponivel=dict(data_inicio=bounds['inicio'].isoformat() if bounds['inicio'] else None,data_fim=bounds['fim'].isoformat() if bounds['fim'] else None))
             q=sql.SQL(SUMMARY_SQL.replace('{where}',where)).format(source=source)
             rows=conn.execute(q,params).fetchall()

@@ -13,3 +13,4 @@ outputs/fob-mestres-20261021/
 *.tmp
 *.temp
 tests/
+outputs/

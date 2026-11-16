@@ -8,7 +8,9 @@ GROUP_ORDER = (
  'Atacado - Vendedores externos - MG','Atacado - Vendedores externos - RJ',
  'Atacado - Vendedores externos - RN/PB','Atacado - Vendedores externos - Norte Brasil',
  'Atacado - Vendedores externos - Matéria Prima','Atacado - Vendedores internos')
-PENDING_GROUPS = ('CD Ribeirão das Neves','Januária')
+PENDING_GROUPS = ()
+UNIT_LABELS = {'10':'10 — Ave Nova','111':'111 — Real Alimentos',
+               '180':'180 — Ribeirão das Neves','102':'102 — Januária'}
 CONFIG = {'bi_key':'faturamento-nf',
- 'bi':{'schema':'comercial','table':'vw_nf_por_vendedor_pai',
+ 'bi':{'schema':'comercial','table':'vw_nf_por_vendedor_pai_faturamento',
        'filters':{'unidade':{'kind':'text','column':'unidade_documento'}}}}

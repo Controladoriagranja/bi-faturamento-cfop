@@ -99,8 +99,8 @@ def calculate_item(item, catalog: Catalog, manual_freight: ManualFreight | None 
             unit = code(item.get('unidade_documento'))
             needs_manual = freight_type == '1' and raw_freight in (None, ZERO)
             if unit == '102':
-                # Todos os tipos: custo mensal tem precedência absoluta sobre NF/Excel.
-                freight = freight_override if freight_override and freight_override.status in ('mensal','mensal_provisorio','pendente_custo_mensal') else Rate(
+                # A regra de Januária também pode isentar tipos > 1, como no Excel.
+                freight = freight_override if freight_override and freight_override.status in ('mensal','mensal_provisorio','pendente_custo_mensal','isento_tipo_frete','pendente_tipo_frete_januaria') else Rate(
                     None,'comercial.custo_mensal_januaria','competência da emissão; fallback outubro/2026','pendente_custo_mensal')
             elif freight_override is not None:
                 freight = freight_override

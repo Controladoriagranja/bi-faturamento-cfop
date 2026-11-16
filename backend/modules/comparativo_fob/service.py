@@ -98,6 +98,19 @@ class ComparativoFOBService:
         catalog=load_catalog()
         if operation=='filtros':
             if request.query_params:raise HTTPException(422,'Filtros não são aceitos nesta operação.')
+            from .feeding import enabled
+            if enabled():
+                from fob.master_repository import SALES_VIEW
+                with self.context.banco() as conn:
+                    families=conn.execute("SELECT DISTINCT coalesce(nullif(familia,''),'Sem família') AS familia FROM "+SALES_VIEW+" ORDER BY 1").fetchall()
+                    bounds=conn.execute('SELECT MIN(data) AS inicio,MAX(data) AS fim FROM '+SALES_VIEW).fetchone()
+                    channels=conn.execute("SELECT DISTINCT canal_venda AS canal FROM comercial.vendedor_grupo WHERE nullif(btrim(canal_venda),'') IS NOT NULL ORDER BY 1").fetchall()
+                return dict(unidade=[dict(value=k,label=v) for k,v in UNITS.items()],
+                    familia=[r['familia'] for r in families],canal=list(dict.fromkeys([*CHANNELS,*[r['canal'] for r in channels]])),
+                    periodo_disponivel=dict(data_inicio=str(bounds['inicio']) if bounds['inicio'] else None,
+                        data_fim=str(bounds['fim']) if bounds['fim'] else None),
+                    periodo_referencia=dict(data_inicio=catalog.period[0],data_fim=catalog.period[1]),
+                    observacao='Base operacional filtrada; comissão do mês completo e cadastros vigentes do PostgreSQL.')
             return dict(unidade=[dict(value=k,label=v) for k,v in UNITS.items()],
                 familia=sorted({r.fields.get('familia') or 'Sem família' for r in catalog.items}),canal=list(CHANNELS),
                 periodo_disponivel=dict(data_inicio='2026-01-01',data_fim=date.today().isoformat()),

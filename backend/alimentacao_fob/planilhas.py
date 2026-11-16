@@ -15,7 +15,8 @@ from fob.master_data import DIMENSIONS, digest, invoice_key, validate_rules
 from fob.calculator import decimal
 
 NF = ('empresa_contexto','unidade_documento','serie','nota_numero','ano_nf')
-FREIGHT_HEADERS = (*NF,'chave_item','assinatura_nf','peso_total_nf','peso_item','escopo','modalidade','valor','observacao')
+FREIGHT_HEADERS_LEGACY = (*NF,'chave_item','assinatura_nf','peso_total_nf','peso_item','escopo','modalidade','valor','observacao')
+FREIGHT_HEADERS = (*FREIGHT_HEADERS_LEGACY,'substituir_frete_original')
 PENDING_HEADERS = (*NF,'chave_item','assinatura_nf','peso_total_nf','peso_item','data','produto',
                    'cliente','produto_descricao','quantidade','frete_original','situacao','motivo')
 RULE_HEADERS = ('registro','inicio','fim','tipo',*DIMENSIONS,'modalidade','valor','divisor','ativo','origem')
@@ -70,6 +71,8 @@ def table(content,sheet,headers):
             raise ValueError('Área excede o modelo ou 50.000 linhas: '+sheet)
         rows=wb[sheet].iter_rows(min_row=5,values_only=True)
         actual=next(rows,())
+        if sheet=='Preenchimentos' and tuple(headers)==FREIGHT_HEADERS and tuple(actual[:len(FREIGHT_HEADERS_LEGACY)])==FREIGHT_HEADERS_LEGACY and not any(v is not None for v in actual[len(FREIGHT_HEADERS_LEGACY):]):
+            headers=FREIGHT_HEADERS_LEGACY
         if tuple(actual[:len(headers)])!=tuple(headers):raise ValueError('Cabeçalhos divergentes: '+sheet)
         if any(v is not None for v in actual[len(headers):]):raise ValueError('Colunas não reconhecidas: '+sheet)
         for number,values in enumerate(rows,6):
@@ -174,17 +177,23 @@ def read_bundle(contents):
         if decimal(r['ano_nf'])!=year:raise ValueError('Ano da NF deve ser inteiro.')
         if not 2000<=year<=2100:raise ValueError('Ano da NF inválido.')
         scope=r['escopo'];mode=r['modalidade'];amount=decimal(r['valor'])
-        if scope not in ('NF','ITEM') or mode not in ('TOTAL','KG') or amount is None or amount<=0:
-            raise ValueError('Frete exige NF/ITEM, TOTAL/KG e valor positivo.')
+        override=r.get('substituir_frete_original')
+        if override not in (None,'','SIM','NAO'):
+            raise ValueError('substituir_frete_original deve ser SIM ou NAO.')
+        override=override=='SIM'
+        if scope not in ('NF','ITEM') or mode not in ('TOTAL','KG') or amount is None or amount<0 or (amount==0 and not (override and mode=='KG')):
+            raise ValueError('Frete exige NF/ITEM, TOTAL/KG e valor positivo; zero KG requer confirmação SIM.')
         if values['unidade_documento']=='102':raise ValueError('Januária usa somente custo mensal.')
         values['ano_nf']=year
         if scope=='ITEM':values['chave_item']=identifier(r['chave_item'])
         elif r.get('chave_item') not in (None,''):raise ValueError('Frete NF deve deixar chave_item vazia.')
         signature=identifier(r['assinatura_nf'])
         if len(signature)!=64:raise ValueError('Copie a assinatura da aba Pendências.')
+        params={'assinatura_nf':signature}
+        if override:params['substituir_original']=True
         rules.append(dict(registro='frete:'+digest(values),inicio=f'{year}-01-01',fim=f'{year}-12-31',
             tipo='frete',dimensoes=values,modalidade=('TOTAL_'+scope) if mode=='TOTAL' else 'KG',
-            valor=amount,parametros={'assinatura_nf':signature},ativo=True,
+            valor=amount,parametros=params,ativo=True,
             origem=f"Fretes.xlsx/Preenchimentos!{r['_linha']}"))
     seen=set()
     for r in table(contents['Despesas.xlsx'],'Custo Mensal Januária',MONTH_HEADERS):
