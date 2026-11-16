@@ -135,6 +135,9 @@ class MasterCatalog:
         self.rules=list(rules);validate_rules(self.rules)
         self.monthly={day(r['competencia']):r for r in monthly}
         self.invoices=invoices or {};self.payroll=payroll or {}
+        # Válido somente nesta instância/consulta; não reutiliza uma assinatura
+        # depois de nova leitura ou alteração do faturamento.
+        self._invoice_checks={};self._invoice_eligibility={}
         self.by_kind=defaultdict(list)
         self.index=defaultdict(lambda:defaultdict(lambda:defaultdict(list)))
         self.freight_by_invoice=defaultdict(list)
@@ -222,16 +225,18 @@ class MasterCatalog:
             r=selected[0];p=r['parametros']
             # Só um cadastro FINAL explicitamente marcado pode substituir um
             # original válido. Cadastros anteriores conservam sua precedência.
-            if full and not any(eligible(i) for i in full) and not p.get('substituir_original',False):selected=[]
+            if full and not p.get('substituir_original',False) and not self.invoice_eligible(key,full):selected=[]
             else:
-                if not full or invoice_signature(full)!=p['assinatura_nf']:
+                if not full:
                     return Rate(None,r['origem'],'Faturamento mudou após preenchimento','revisar_identificacao')
-                weights=[decimal(i.get('peso')) for i in full]
-                if any(w is None or w<=0 for w in weights) or len({str(i['data']) for i in full})!=1 or len({str(i.get('cliente')) for i in full})!=1:
+                signature,valid,unique,total_weight=self.invoice_check(key,full)
+                if signature!=p['assinatura_nf']:
+                    return Rate(None,r['origem'],'Faturamento mudou após preenchimento','revisar_identificacao')
+                if not valid:
                     return Rate(None,r['origem'],'NF integral inconsistente','revisar_identificacao')
-                if any(count>1 for count in Counter(item_identity(i) for i in full).values()):
+                if not unique:
                     return Rate(None,r['origem'],'Itens indistinguíveis','pendente_ambiguidade')
-                denominator=decimal(item.get('peso')) if detailed else sum(weights,Decimal(0))
+                denominator=decimal(item.get('peso')) if detailed else total_weight
                 value=decimal(r['valor'])
                 if r['modalidade'] in ('TOTAL_NF','TOTAL_ITEM'):value=value/denominator
                 return Rate(value,r['origem'],'total / peso integral NF' if nf else 'frete exclusivo do item',
@@ -245,6 +250,20 @@ class MasterCatalog:
         if original is None or original<0:
             return Rate(None,origin,'Frete original ausente ou inválido','pendente_frete_origem',inputs)
         return Rate(original,origin,'frete_kg original válido, sem somar outro frete','calculado',inputs)
+
+    def invoice_eligible(self,key,rows):
+        if key not in self._invoice_eligibility:self._invoice_eligibility[key]=any(eligible(i) for i in rows)
+        return self._invoice_eligibility[key]
+
+    def invoice_check(self,key,rows):
+        if key not in self._invoice_checks:
+            signature=invoice_signature(rows)
+            weights=[decimal(i.get('peso')) for i in rows]
+            valid=not any(w is None or w<=0 for w in weights) and len({str(i['data']) for i in rows})==1 and len({str(i.get('cliente')) for i in rows})==1
+            unique=not any(count>1 for count in Counter(item_identity(i) for i in rows).values())
+            total=sum(weights,Decimal(0)) if valid else None
+            self._invoice_checks[key]=(signature,valid,unique,total)
+        return self._invoice_checks[key]
 
 
 def calculate_master_item(item,catalog):
@@ -277,16 +296,24 @@ def calculate_payroll(rules,items):
     for period in sorted({(str(r['inicio']),str(r['fim'])) for r in folhas}):
         selected=[r for r in folhas if (str(r['inicio']),str(r['fim']))==period]
         totals={};groups=defaultdict(lambda:Decimal(0)); invalid=False
+        wanted={code(r['dimensoes']['vendedor']) for r in selected}
+        # A ordem de soma de cada vendedor permanece igual à ordem dos itens.
+        # Antes, o mesmo mês era percorrido novamente para cada vendedor.
+        seller_totals={v:[Decimal(0),Decimal(0)] for v in wanted}
+        first,last=day(period[0]),day(period[1])
+        for item in items:
+            if str(item.get('unidade_documento')).strip() not in ('10','111','180') or not first<=day(item['data'])<=last:continue
+            seller=code(item.get('vendedor'))
+            if seller not in wanted:continue
+            if item.get('peso') is None or item.get('valor_produto') is None:invalid=True
+            seller_totals[seller][0]+=decimal(item.get('peso')) or Decimal(0)
+            seller_totals[seller][1]+=decimal(item.get('valor_produto')) or Decimal(0)
         for r in selected:
-            rows=[i for i in items if day(period[0])<=day(i['data'])<=day(period[1]) and
-                  str(i.get('unidade_documento')).strip() in ('10','111','180') and
-                  code(i.get('vendedor'))==code(r['dimensoes']['vendedor'])]
-            if any(i.get('peso') is None or i.get('valor_produto') is None for i in rows):invalid=True
-            w=sum((decimal(i.get('peso')) or Decimal(0) for i in rows),Decimal(0))
-            m=sum((decimal(i.get('valor_produto')) or Decimal(0) for i in rows),Decimal(0))
+            w,m=seller_totals[code(r['dimensoes']['vendedor'])]
             totals[r['registro']]=(w,m)
             for level,manager in enumerate(r['parametros'].get('gestores',[])):
                 groups[level,manager]+=m
+        manager_bases={}
         for r in selected:
             if invalid:result[r['registro']]=None;continue
             w,m=totals[r['registro']];p=r['parametros']
@@ -298,9 +325,11 @@ def calculate_payroll(rules,items):
                 g=candidates[0];gp=g['parametros'];denominator=groups[level,manager]
                 if gp.get('base_manual') is not None:base=decimal(gp['base_manual'])
                 else:
-                    manager_level=int(gp['nivel'])-1
-                    team=[totals[f['registro']] for f in selected if f['parametros'].get('gestores',['','',''])[manager_level]==manager]
-                    _,base=payroll_cost(gp,sum((t[0] for t in team),Decimal(0)),sum((t[1] for t in team),Decimal(0)))
+                    if manager not in manager_bases:
+                        manager_level=int(gp['nivel'])-1
+                        team=[totals[f['registro']] for f in selected if f['parametros'].get('gestores',['','',''])[manager_level]==manager]
+                        _,manager_bases[manager]=payroll_cost(gp,sum((t[0] for t in team),Decimal(0)),sum((t[1] for t in team),Decimal(0)))
+                    base=manager_bases[manager]
                 amount+=base*(m/denominator)*decimal(p['dias_periodo'])/decimal(p['dias_mes'])/w if denominator and w else Decimal(0)
             result[r['registro']]=amount
     return result

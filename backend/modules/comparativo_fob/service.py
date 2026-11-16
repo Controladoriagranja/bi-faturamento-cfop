@@ -4,6 +4,7 @@ from datetime import date,timedelta
 from decimal import Decimal
 from functools import lru_cache
 import logging
+from hashlib import sha256
 from threading import RLock
 
 from fastapi import HTTPException
@@ -133,7 +134,11 @@ class ComparativoFOBService:
         if only_pending not in ('0','1') or freight_fill not in ('0','1') or len(search)>200:raise HTTPException(422,'Busca ou estado inválido.')
         from .feeding import enabled,execute_master
         if enabled():
-            return execute_master(self,operation,start,end,choices,search,single,catalog)
+            headers=getattr(request,'headers',{})
+            # Não armazena credenciais. A autenticação existente continua sendo
+            # executada antes de acessar o cache e abrir a conexão banco().
+            scope=sha256((headers.get('authorization','')+'\0'+headers.get('x-portal-authorization','')).encode('utf-8')).hexdigest()
+            return execute_master(self,operation,start,end,choices,search,single,catalog,cache_scope=scope)
         if start.isoformat()<catalog.period[0] or end.isoformat()>catalog.period[1]:
             if freight_fill=='1':raise HTTPException(409,'O detalhamento de Fretes.xlsx exige a alimentação por planilhas-mestre.')
             return execute_history(self.context,operation,start,end,choices,search,single)

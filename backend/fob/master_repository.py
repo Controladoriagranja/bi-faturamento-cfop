@@ -10,6 +10,19 @@ FIELDS = ('empresa_contexto,unidade_documento,serie,nota_numero,data,produto,cli
 SALES_VIEW = 'comercial.vw_faturamento_vendedor_pai_itens'
 
 
+def read_revision(conn):
+    """A revisão MVCC muda com escritas, inclusive sem mudar carregado_em.
+
+    Cache somente em transação de leitura com snapshot estável. Não cria objetos
+    nem depende de triggers, agendamentos ou timestamps mantidos pelo extrator.
+    """
+    return conn.execute('''SELECT pg_current_snapshot()::text revisao,
+      current_database() banco,current_user::text usuario,session_user::text sessao,
+      inet_server_addr()::text servidor,inet_server_port() porta,
+      current_setting('role') papel,current_setting('transaction_isolation') isolamento,
+      current_setting('transaction_read_only') somente_leitura''').fetchone()
+
+
 def read_candidates(conn,start,end,limit=30000):
     rows=conn.execute('SELECT '+FIELDS+''' FROM comercial.vw_faturamento_cfop_filtrado
       WHERE data >= %s AND data < %s AND btrim(unidade_documento)<>'102'
@@ -23,20 +36,25 @@ def read_candidates(conn,start,end,limit=30000):
 def read_invoices(conn,keys,limit_per_batch=20000):
     """NF integral: nenhum filtro comercial, de família, de canal ou de CFOP."""
     invoices=defaultdict(list);keys=sorted(set(keys))
-    for offset in range(0,len(keys),2000):
-        batch=keys[offset:offset+2000]
-        columns=','.join('f.'+field for field in FIELDS.split(','))
-        # Arrays mantêm o número de parâmetros fixo e evitam dezenas de viagens
-        # para uma competência com milhares de fretes. A NF continua integral.
-        rows=conn.execute('SELECT '+columns+''' FROM comercial.faturamento_cfop f
+    if not keys:return {}
+    # Uma leitura da origem para todas as chaves. O limite original de 20.000
+    # itens por grupo de 2.000 NFs continua sendo conferido após a leitura.
+    buckets={key:i//2000 for i,key in enumerate(keys)}
+    maximum=((len(keys)+1999)//2000)*limit_per_batch
+    columns=','.join('f.'+field for field in FIELDS.split(','))
+    rows=conn.execute('SELECT '+columns+''' FROM comercial.faturamento_cfop f
           JOIN unnest(%s::text[],%s::text[],%s::text[],%s::text[],%s::integer[])
             AS k(empresa,unidade,serie,nf,ano)
           ON f.empresa_contexto=k.empresa AND btrim(f.unidade_documento)=k.unidade
             AND btrim(f.serie)=k.serie AND btrim(f.nota_numero)=k.nf
             AND extract(year FROM f.data)::integer=k.ano LIMIT %s''',
-          [*[list(values) for values in zip(*batch)],limit_per_batch+1]).fetchall()
-        if len(rows)>limit_per_batch:raise ValueError('NF/lote excede limite de itens integrais; revisar identificação.')
-        for row in rows:invoices[invoice_key(row)].append(row)
+          [*[list(values) for values in zip(*keys)],maximum+1]).fetchall()
+    if len(rows)>maximum:raise ValueError('NF/lote excede limite de itens integrais; revisar identificação.')
+    counts=defaultdict(int)
+    for row in rows:
+        key=invoice_key(row);bucket=buckets[key];counts[bucket]+=1
+        if counts[bucket]>limit_per_batch:raise ValueError('NF/lote excede limite de itens integrais; revisar identificação.')
+        invoices[key].append(row)
     return dict(invoices)
 
 
@@ -50,11 +68,12 @@ def read_monthly(conn):
 
 
 def read_sales(conn,start,end,limit=100000):
+    columns=','.join('f.'+name for name in ('id,'+FIELDS+',desc_finan').split(','))
     rows=conn.execute('''WITH vendedores AS (
       SELECT coalesce(nullif(ltrim(btrim(vendedor),'0'),''),'0') vendedor,
       CASE WHEN count(DISTINCT canal_venda)=1 THEN max(canal_venda) ELSE 'Não classificado' END canal
       FROM comercial.vendedor_grupo GROUP BY 1
-    ) SELECT f.*,coalesce(nullif(f.familia,''),'Sem família') familia_grupo,
+    ) SELECT '''+columns+''',coalesce(nullif(f.familia,''),'Sem família') familia_grupo,
       CASE WHEN upper(btrim(f.familia))='SUBPRODUTOS' THEN 'Subprodutos'
         WHEN ltrim(btrim(f.unidade_documento),'0')='102' THEN 'Varejo'
         ELSE coalesce(v.canal,'Não classificado') END canal_grupo
