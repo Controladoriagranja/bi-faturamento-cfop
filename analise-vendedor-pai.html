@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>try{const t=localStorage.getItem('bi-zootecnico-theme');document.documentElement.dataset.theme=(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))?'dark':'light';}catch(_){}</script>
+  <title>Análise FOB por Vendedor Pai · Granja Brasília</title>
+  <link rel="icon" href="assets/img/favicon-granja.png">
+  <link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/navigation.css">
+  <link rel="stylesheet" href="assets/css/seller-analysis.css">
+  <script defer src="assets/js/theme.js"></script><script defer src="assets/js/config.js"></script>
+  <script defer src="assets/js/api.js"></script><script defer src="assets/js/csv-export.js"></script>
+  <script defer src="assets/js/report-state.js"></script><script defer src="assets/js/navigation.js"></script>
+  <script defer src="assets/js/seller-analysis.js"></script>
+</head>
+<body data-page="analise-vendedor-pai">
+<main class="workspace seller-analysis">
+  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Análise FOB por Vendedor Pai</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema"><span data-theme-icon aria-hidden="true">☾</span></button></div>
+  <form id="seller-filters" class="filter-card">
+    <div class="filter-title"><strong>Período e regionais</strong><span>Comparação por produto com o PM FOB global das quatro unidades.</span></div>
+    <div class="seller-fields">
+      <label class="field">Data inicial<input id="seller-start" type="date" value="2026-10-01" required min="2026-01-01"></label>
+      <label class="field">Data final<input id="seller-end" type="date" value="2026-10-31" required min="2026-01-01"></label>
+      <label class="field">Unidade<select id="seller-unit"><option value="">Todas</option><option value="10">10 — Ave Nova</option><option value="111">111 — Real Alimentos</option><option value="180">180 — Ribeirão das Neves</option><option value="102">102 — Januária</option></select></label>
+      <label class="field">Regional<select id="seller-region"><option value="">Todas</option></select></label>
+      <label class="field">Produto<select id="seller-product"><option value="">Todos do catálogo</option></select></label>
+      <button class="primary-button" type="submit">Consultar análise <span aria-hidden="true">→</span></button>
+    </div>
+  </form>
+  <p id="seller-status" class="status" role="status" aria-live="polite">Preparando consulta autenticada…</p>
+  <section class="report-card" aria-labelledby="seller-title">
+    <header class="report-header"><h1 id="seller-title">Análise Diferença Fat. FOB por Vendedor PAI × PM FOB Total<span>Regional, composição dos produtos e impacto financeiro</span></h1><div class="period"><span>PERÍODO CONSULTADO</span><strong id="seller-period">—</strong></div></header>
+    <div class="seller-tools"><span>Clique na regional para investigar os produtos. Cabeçalhos permitem ordenar.</span><button id="seller-export" type="button" disabled>Exportar tabela CSV</button></div>
+    <p class="seller-note">Resultado projetado, % resultado e impostos: <strong>pendentes de CPV, despesas administrativas e regras de fechamento</strong>. Pendência não equivale a zero.</p>
+    <div class="seller-scroll" tabindex="0" aria-label="Tabela regional; role horizontalmente para ver todas as colunas">
+      <table id="seller-table"><caption class="sr-only">Análise FOB por regional e consolidações</caption><thead></thead><tbody><tr><td class="empty" colspan="12">Aguardando consulta.</td></tr></tbody><tfoot></tfoot></table>
+    </div>
+    <footer class="report-footer"><span id="seller-source">PostgreSQL · motor FOB operacional · somente leitura</span><span id="seller-validation">—</span></footer>
+  </section>
+  <details class="filter-card seller-method"><summary>Critérios, abrangência e pendências</summary>
+    <p>Diferença financeira = soma de peso regional do produto × (PM FOB regional do produto − PM FOB global do mesmo código). O benchmark considera as unidades 10, 111, 180 e 102 antes dos filtros de exibição.</p>
+    <p>% Peso e % FOB usam o total do catálogo principal nas unidades e produtos selecionados, antes do filtro regional. % Diferença = diferença financeira ÷ (FOB − diferença financeira).</p>
+    <p>Comissão/kg inclui comissão e adicional. Contrato/kg representa o contrato de cliente/rede; RN e Januária aguardam definição dessa coluna, pois o Excel contém zeros fixos.</p>
+    <p>Atacado e Varejo seguem os grupos do quadro original (incluindo Sem Vínculo no Varejo). Pele e dorso a granel consideram Sem Vínculo nas unidades 10 e 111; CMS fica separado. Produtos fora do catálogo são informados abaixo, sem inclusão silenciosa. Regionais adicionais ficam identificadas e não são atribuídas aos consolidados Atacado/Varejo.</p>
+    <p>Os totais financeiros pendentes não reproduzem a inconsistência de abrangência de CMS e resíduos do Excel. Nenhum resultado final é copiado da planilha.</p>
+    <p id="seller-scope">Consulte para verificar a cobertura do catálogo.</p>
+  </details>
+</main>
+<dialog id="seller-dialog" aria-labelledby="seller-detail-title"><header><div><h2 id="seller-detail-title">Produtos da regional</h2><p>Valores calculados no backend. PM global permanece nas quatro unidades.</p></div><button id="seller-close" type="button" aria-label="Fechar detalhamento">Fechar ×</button></header><div class="seller-tools"><span id="seller-detail-count"></span><button id="seller-detail-export" type="button">Exportar produtos CSV</button></div><div class="seller-scroll" tabindex="0"><table id="seller-products"><thead></thead><tbody></tbody></table></div></dialog>
+</body></html>

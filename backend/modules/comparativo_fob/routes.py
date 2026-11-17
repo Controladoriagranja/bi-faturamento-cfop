@@ -11,6 +11,10 @@ def create_router(service):
     def resumo(request:Request):return service.execute('resumo',request)
     @router.get('/detalhes')
     def detalhes(request:Request):return service.execute('detalhes',request)
+    @router.get('/analise-vendedor-pai')
+    def analise_vendedor(request:Request):
+        from .seller_analysis import execute
+        return execute(service,request)
     return router
 
 

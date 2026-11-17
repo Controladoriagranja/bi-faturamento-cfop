@@ -1,0 +1,448 @@
+{
+  "origem": "AnalisePreco01a31.xlsx / AnaliseVendedorPai / B5:C115, C136:C157",
+  "sha256": "b0eafacfbc90383526e093cbf758e234bb9f22d306baa6525eea165b6dfe57e0",
+  "produtos": [
+    {
+      "codigo": "110",
+      "descricao": "ASA IN NATURA CONG (PCT)"
+    },
+    {
+      "codigo": "1110",
+      "descricao": "ASA IN NATURA CONG (PCT) 20 KGS"
+    },
+    {
+      "codigo": "350",
+      "descricao": "ASA IN NATURA CONG ENVELOPADA - 20KG"
+    },
+    {
+      "codigo": "1350",
+      "descricao": "ASA IN NATURA CONG ENVELOPADA - 20KGS"
+    },
+    {
+      "codigo": "1240",
+      "descricao": "ASA IN NATURA CONG ENVELOPADA 18 KG"
+    },
+    {
+      "codigo": "1251",
+      "descricao": "ASA IN NATURA CONG FOOD SERVICE 5 KGS"
+    },
+    {
+      "codigo": "251",
+      "descricao": "ASA IN NATURA CONG FOOD SERVICE 5KG"
+    },
+    {
+      "codigo": "115",
+      "descricao": "ASA IN NATURA CONG INTERFOLHADA"
+    },
+    {
+      "codigo": "202",
+      "descricao": "ASA IN NATURA RESFRIADA (PCT)"
+    },
+    {
+      "codigo": "1202",
+      "descricao": "ASA IN NATURA RESFRIADA (PCT) 20 KGS"
+    },
+    {
+      "codigo": "1115",
+      "descricao": "ASA IN NATURA CONG INTERFOLHADA."
+    },
+    {
+      "codigo": "1367",
+      "descricao": "APERITIVO CONG 800 GR."
+    },
+    {
+      "codigo": "309",
+      "descricao": "COXINHA DA ASA CONGELADA 800G"
+    },
+    {
+      "codigo": "1309",
+      "descricao": "COXINHA DA ASA CONGELADA 800GR"
+    },
+    {
+      "codigo": "361",
+      "descricao": "COXINHA DA ASA IN NATURA CONG INTERFOLHA"
+    },
+    {
+      "codigo": "1361",
+      "descricao": "COXINHA DA ASA IN NATURA CONG INTERFOLHA"
+    },
+    {
+      "codigo": "310",
+      "descricao": "MEIO DA ASA CONGELADA 800G"
+    },
+    {
+      "codigo": "1310",
+      "descricao": "MEIO DA ASA CONGELADA ENVELOPADA 20KG"
+    },
+    {
+      "codigo": "362",
+      "descricao": "MEIO DA ASA IN NATURA CONG INTERFOLHADA"
+    },
+    {
+      "codigo": "1362",
+      "descricao": "MEIO DA ASA IN NATURA CONG INTERFOLHADA"
+    },
+    {
+      "codigo": "1274",
+      "descricao": "CORACAO IN NATURA CONG 800 GRAMAS"
+    },
+    {
+      "codigo": "274",
+      "descricao": "CORACAO IN NATURA CONG 800G"
+    },
+    {
+      "codigo": "275",
+      "descricao": "CORACAO IN NATURA RESFRIADO 800G"
+    },
+    {
+      "codigo": "111",
+      "descricao": "COXA SOBREC IN NAT CONG (PCT)"
+    },
+    {
+      "codigo": "1111",
+      "descricao": "COXA SOBREC IN NAT CONG (PCT) 20 KGS"
+    },
+    {
+      "codigo": "1116",
+      "descricao": "COXA SOBREC IN NAT CONG INTERFOLHADA."
+    },
+    {
+      "codigo": "351",
+      "descricao": "COXA SOBREC IN NAT CONG ENVELOPADA - 20K"
+    },
+    {
+      "codigo": "1351",
+      "descricao": "COXA SOBREC IN NAT CONG ENVELOPADA - 20K"
+    },
+    {
+      "codigo": "1254",
+      "descricao": "COXA SOBREC IN NAT CONG ENVELOPADA 18 KG"
+    },
+    {
+      "codigo": "250",
+      "descricao": "COXA SOBREC IN NAT CONG FOOD SERVICE 5 K"
+    },
+    {
+      "codigo": "1250",
+      "descricao": "COXA SOBREC IN NAT CONG FOOD SERVICE 5 K"
+    },
+    {
+      "codigo": "116",
+      "descricao": "COXAS SOBREC IN NATURA CONG INTERFOLHADA"
+    },
+    {
+      "codigo": "209",
+      "descricao": "COXA SOBREC IN NAT RESFRIADA (PCT)"
+    },
+    {
+      "codigo": "1209",
+      "descricao": "COXA SOBREC IN NAT RESFRIADA (PCT) 20 KG"
+    },
+    {
+      "codigo": "1360",
+      "descricao": "COXA SOBREC C/ PORCAO DORSAL ENVELOPADA 20KG"
+    },
+    {
+      "codigo": "353",
+      "descricao": "SOBRECOXA IN NATURA CONG ENVELOPADA - 20"
+    },
+    {
+      "codigo": "1353",
+      "descricao": "SOBRECOXA IN NATURA CONG ENVELOPADA - 20KGS"
+    },
+    {
+      "codigo": "1409",
+      "descricao": "SOBRECOXA IN NATURA CONG INTERFOLHADA"
+    },
+    {
+      "codigo": "354",
+      "descricao": "COXA IN NATURA CONG ENVELOPADA - 20KG"
+    },
+    {
+      "codigo": "1354",
+      "descricao": "COXA IN NATURA CONG ENVELOPADA - 20KGS"
+    },
+    {
+      "codigo": "1408",
+      "descricao": "COXA IN NATURA CONG INTERFOLHADA"
+    },
+    {
+      "codigo": "107",
+      "descricao": "DORSO IN NATURA CONG"
+    },
+    {
+      "codigo": "1107",
+      "descricao": "DORSO IN NATURA CONG 15 KGS"
+    },
+    {
+      "codigo": "1278",
+      "descricao": "FIGADO IN NATURA CONG 800 GRAMAS"
+    },
+    {
+      "codigo": "278",
+      "descricao": "FIGADO IN NATURA CONG 800G"
+    },
+    {
+      "codigo": "204",
+      "descricao": "FILE PEITO IN NATURA CONG (PCT)"
+    },
+    {
+      "codigo": "1204",
+      "descricao": "FILE PEITO IN NATURA CONG (PCT) 20 KGS"
+    },
+    {
+      "codigo": "262",
+      "descricao": "FILE PEITO IN NATURA CONG BANDEJA"
+    },
+    {
+      "codigo": "255",
+      "descricao": "FILE PEITO IN NATURA CONG ENVELOPADO - 1"
+    },
+    {
+      "codigo": "349",
+      "descricao": "FILE PEITO IN NATURA CONG ENVELOPADO - 2"
+    },
+    {
+      "codigo": "1349",
+      "descricao": "FILE PEITO IN NATURA CONG ENVELOPADO 20K"
+    },
+    {
+      "codigo": "123",
+      "descricao": "FILE PEITO IN NATURA CONG INTERFOLHADO"
+    },
+    {
+      "codigo": "381",
+      "descricao": "FILE PEITO IN NATURA FILEZINHO SASSAMI"
+    },
+    {
+      "codigo": "382",
+      "descricao": "FILE PEITO IN NATURA FILE SEM SASSAMI"
+    },
+    {
+      "codigo": "200",
+      "descricao": "FILE PEITO IN NATURA RESFRIADO (PCT)"
+    },
+    {
+      "codigo": "1200",
+      "descricao": "FILE PEITO IN NATURA RESFRIADO (PCT) 20"
+    },
+    {
+      "codigo": "108",
+      "descricao": "FRANGO IN NATURA CONG"
+    },
+    {
+      "codigo": "233",
+      "descricao": "FRANGO IN NATURA CONG - 18KG"
+    },
+    {
+      "codigo": "1108",
+      "descricao": "FRANGO IN NATURA CONG 20 KGS"
+    },
+    {
+      "codigo": "143",
+      "descricao": "FRANGO IN NATURA RESFRIADO"
+    },
+    {
+      "codigo": "1143",
+      "descricao": "FRANGO IN NATURA RESFRIADO 20 KGS"
+    },
+    {
+      "codigo": "194",
+      "descricao": "FRANGO ESPECIAL TEMPERADO 20 KGS"
+    },
+    {
+      "codigo": "1194",
+      "descricao": "FRANGO ESPECIAL TEMPERADO 20 KGS"
+    },
+    {
+      "codigo": "370",
+      "descricao": "FRANGO ESPECIAL TEMPERADO 21 KGS"
+    },
+    {
+      "codigo": "1370",
+      "descricao": "FRANGO ESPECIAL TEMPERADO 21 KGS"
+    },
+    {
+      "codigo": "375",
+      "descricao": "FRANGO ESPECIAL TEMPERADO CONG 22 KG."
+    },
+    {
+      "codigo": "1375",
+      "descricao": "FRANGO ESPECIAL TEMPERADO CONG 22 KG."
+    },
+    {
+      "codigo": "193",
+      "descricao": "FRANGO PASSARINHO TEMPERADO CONG"
+    },
+    {
+      "codigo": "1193",
+      "descricao": "FRANGO PASSARINHO TEMPERADO CONG 20 KGS"
+    },
+    {
+      "codigo": "1363",
+      "descricao": "LINGUICA FRANGO 1KG"
+    },
+    {
+      "codigo": "1373",
+      "descricao": "LINGUICA FRANGO FINA"
+    },
+    {
+      "codigo": "1372",
+      "descricao": "LINGUICA CARNE FRANGO"
+    },
+    {
+      "codigo": "1364",
+      "descricao": "LINGUICA FRANGO 1KG"
+    },
+    {
+      "codigo": "1380",
+      "descricao": "LINGUICA CARNE FRANGO GOMO"
+    },
+    {
+      "codigo": "1276",
+      "descricao": "MOELA IN NATURA CONG 800 GRAMAS"
+    },
+    {
+      "codigo": "276",
+      "descricao": "MOELA IN NATURA CONG 800G"
+    },
+    {
+      "codigo": "1371",
+      "descricao": "PALETINHA FRANGO CONG 800 GR."
+    },
+    {
+      "codigo": "196",
+      "descricao": "PE IN NATURA CONG (PCT)"
+    },
+    {
+      "codigo": "1196",
+      "descricao": "PE IN NATURA CONG (PCT) 15 KGS"
+    },
+    {
+      "codigo": "1041",
+      "descricao": "PE IN NATURA CONGELADO 15 KG"
+    },
+    {
+      "codigo": "359",
+      "descricao": "PE IN NATURA CONGELADO 18KGS"
+    },
+    {
+      "codigo": "1376",
+      "descricao": "PE IN NATURA CONGELADO 4,5KGS"
+    },
+    {
+      "codigo": "376",
+      "descricao": "PE IN NATURA CONGELADO 4,5KGS"
+    },
+    {
+      "codigo": "1359",
+      "descricao": "PE IN NATURA CONGELADO 18KGS"
+    },
+    {
+      "codigo": "41",
+      "descricao": "PE IN NATURA CONGELADO."
+    },
+    {
+      "codigo": "109",
+      "descricao": "PEITO IN NATURA CONG (PCT)"
+    },
+    {
+      "codigo": "1109",
+      "descricao": "PEITO IN NATURA CONG (PCT) 20 KGS"
+    },
+    {
+      "codigo": "140",
+      "descricao": "PEITO IN NATURA CONG ENVELOPADO - 18KG"
+    },
+    {
+      "codigo": "1355",
+      "descricao": "PEITO IN NATURA CONG ENVELOPADO 20KGS"
+    },
+    {
+      "codigo": "1252",
+      "descricao": "PEITO IN NATURA CONG FOOD SERVICE 5 KGS"
+    },
+    {
+      "codigo": "252",
+      "descricao": "PEITO IN NATURA CONG FOOD SERVICE 5KG"
+    },
+    {
+      "codigo": "114",
+      "descricao": "PEITO IN NATURA CONGELADO INTERFOLHADO"
+    },
+    {
+      "codigo": "199",
+      "descricao": "PEITO IN NATURA RESFRIADO (PCT)"
+    },
+    {
+      "codigo": "1199",
+      "descricao": "PEITO IN NATURA RESFRIADO (PCT) 20 KGS"
+    },
+    {
+      "codigo": "197",
+      "descricao": "PELE IN NATURA CONG (PCT)"
+    },
+    {
+      "codigo": "357",
+      "descricao": "PELE CONGELADA 20KGS"
+    },
+    {
+      "codigo": "1357",
+      "descricao": "PELE IN NATURA CONGELADA (20 KG)"
+    },
+    {
+      "codigo": "1244",
+      "descricao": "PELE IN NATURA CONG 18 KGS"
+    },
+    {
+      "codigo": "331",
+      "descricao": "PESCOCO CONG 800G"
+    },
+    {
+      "codigo": "1331",
+      "descricao": "PESCOCO CONG 800GRS"
+    },
+    {
+      "codigo": "307",
+      "descricao": "SAMBIQUIRA IN NATURA CONG 800G"
+    },
+    {
+      "codigo": "1307",
+      "descricao": "SAMBIQUIRA IN NATURA CONG 800GR"
+    }
+  ],
+  "cms": [
+    "249",
+    "1249",
+    "347",
+    "1347"
+  ],
+  "granel": {
+    "pele": "383",
+    "dorso": "248"
+  },
+  "regionais": [
+    "Atacado - Vendedores externos - Outros",
+    "Atacado - Vendedores externos - AL/PE",
+    "Atacado - Vendedores externos - BA/SE",
+    "Atacado - Vendedores externos - DF/GO",
+    "Atacado - Vendedores externos - MG",
+    "Atacado - Vendedores externos - RJ",
+    "Atacado - Vendedores externos - RN/PB",
+    "Atacado - Vendedores externos - Norte Brasil",
+    "Atacado - Vendedores externos - Matéria Prima",
+    "Atacado - Vendedores internos",
+    "CD Ribeirão da Neves",
+    "Januária",
+    "Varejo Centro-Oeste",
+    "Sem Vínculo",
+    "Varejo Grande BH",
+    "Varejo Jequitinhonha MG",
+    "Varejo RJ",
+    "Varejo Sul Minas",
+    "Varejo Vale Aço",
+    "Raio 150 KM",
+    "Triângulo Mineiro",
+    "Zona da Mata Mineira"
+  ]
+}
