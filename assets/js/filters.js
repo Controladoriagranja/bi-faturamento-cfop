@@ -516,6 +516,7 @@ normalizeOptions(field, raw) {
                 if (field.multi) {
                     const state = this.getState(field);
                     state.selected.clear();
+                    if (state.search) state.search.value = "";
 
                     if (state.host || state.options.length) {
                         this.renderMultiOptions(

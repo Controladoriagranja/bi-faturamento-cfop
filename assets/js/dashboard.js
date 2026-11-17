@@ -144,6 +144,17 @@
     } finally {if(own===sequence)$("report-body").closest("section").setAttribute("aria-busy","false");}
   }
   $("filters-form").addEventListener("submit",e=>{e.preventDefault();consultar();});
+  $("clear-filters").addEventListener("click",()=>{
+    controller?.abort();sequence++;FaturamentoDetails.close();
+    filters.clear();filters.closeAll();
+    for(const id of ['data-inicio','data-fim'])$(id).value='';
+    state.save({applied:null});state.saveDraft();clearReport();
+    $("report-body").closest("section").setAttribute('aria-busy','false');
+    $("report-body").querySelector('td').textContent='Selecione o período e consulte o relatório.';
+    $("units-label").textContent='Todas as unidades disponíveis';
+    status('Filtros limpos. Selecione o período e clique em Consultar relatório.');
+    $('data-inicio').focus();
+  });
   for (const id of ["data-inicio","data-fim"]) $(id).addEventListener("change",()=>status("Período alterado. Clique em Consultar relatório."));
   async function iniciar() {
     try {
@@ -153,6 +164,7 @@
       if ($("data-inicio").value && $("data-fim").value) await consultar(state.applied());
       else status("A fonte ainda não tem notas fiscais disponíveis.");
     } catch(error) {clearReport();status(error.message,"error");}
+    finally {$("clear-filters").disabled=false;}
   }
   iniciar();
 })();

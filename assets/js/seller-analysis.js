@@ -46,9 +46,18 @@
   $('seller-detail-export').addEventListener('click',()=>csv(detailRows,productColumns,`produtos-regional-${applied.data_inicio}-${applied.data_fim}.csv`));
   $('seller-close').addEventListener('click',()=>$('seller-dialog').close());
   form.addEventListener('submit',e=>{e.preventDefault();query();});form.addEventListener('change',()=>{persist();if(payload)status('Filtros alterados. Consulte para aplicá-los.');});window.addEventListener('pagehide',persist);
+  $('seller-clear-filters').addEventListener('click',()=>{
+    controller?.abort();sequence++;payload=null;applied=null;
+    for(const id of ['seller-start','seller-end','seller-unit','seller-region','seller-product'])$(id).value='';
+    state.save({applied:null});persist();if($('seller-dialog').open)$('seller-dialog').close();
+    $('seller-export').disabled=true;$('seller-table').tFoot.replaceChildren();
+    const tr=node('tr'),td=node('td','Selecione o período e consulte a análise.');td.colSpan=12;tr.append(td);$('seller-table').tBodies[0].replaceChildren(tr);
+    $('seller-period').textContent='—';$('seller-validation').textContent='—';$('seller-scope').textContent='Consulte para verificar a cobertura do catálogo.';
+    form.removeAttribute('aria-busy');status('Filtros limpos. Selecione o período e clique em Consultar análise.');$('seller-start').focus();
+  });
   const saved=state.get('draft',{});sortKey=state.get('sortKey','regional');direction=state.get('direction',1);sorted=state.get('sorted',false);
   for(const [id,key] of [['seller-start','data_inicio'],['seller-end','data_fim'],['seller-unit','unidade']])if(typeof saved[key]==='string')$(id).value=saved[key];
   for(const [id,key] of [['seller-region','regional'],['seller-product','produto']])if(saved[key]){const o=node('option',saved[key]);o.value=saved[key];$(id).append(o);$(id).value=saved[key];}
   for(const id of ['seller-start','seller-end'])$(id).max=new Date().toLocaleDateString('en-CA');
-  query();
+  if($('seller-start').value&&$('seller-end').value)query();else status('Selecione o período e clique em Consultar análise.');
 })();

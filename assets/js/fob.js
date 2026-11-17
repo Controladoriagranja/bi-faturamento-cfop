@@ -170,9 +170,19 @@
       const bounds=options.periodo_disponivel;
       for(const id of ['fob-inicio','fob-fim']){$(id).min=bounds.data_inicio;$(id).max=bounds.data_fim;}
       state.restore(options.periodo_referencia||bounds);initialized=true;await query(state.applied());
-    }catch(error){status(error.message,true);}finally{initializing=false;}
+    }catch(error){status(error.message,true);}finally{initializing=false;$('fob-clear-filters').disabled=false;}
   }
   $('fob-filters').addEventListener('submit',event=>{event.preventDefault();if(initialized)query();else initialize();});
+  $('fob-clear-filters').addEventListener('click',()=>{
+    summaryController?.abort();summarySeq++;closeItems();filters.clear();filters.closeAll();
+    for(const id of ['fob-inicio','fob-fim'])$(id).value='';
+    state.save({applied:null});state.saveDraft();payload=null;applied=null;
+    $('fob-cards').replaceChildren();$('fob-table').tFoot.replaceChildren();
+    const tr=node('tr'),td=node('td','Selecione o período e consulte o comparativo.','empty');td.colSpan=17;tr.append(td);$('fob-table').tBodies[0].replaceChildren(tr);
+    $('fob-period').textContent='—';$('fob-count').textContent='—';$('fob-export').disabled=true;
+    $('view-comparativo-fob').setAttribute('aria-busy','false');
+    status('Filtros limpos. Selecione o período e clique em Consultar comparativo.');$('fob-inicio').focus();
+  });
   for(const id of ['fob-inicio','fob-fim'])$(id).addEventListener('change',()=>status('Período alterado. Consulte para atualizar.'));
   $('fob-reference').addEventListener('change',()=>{state.save({reference:referenceVisible()});if(payload)render();});
   document.querySelectorAll('[data-fob-mode]').forEach(button=>button.addEventListener('click',()=>{mode=button.dataset.fobMode;state.save({mode});document.querySelectorAll('[data-fob-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));if(payload)render();}));
