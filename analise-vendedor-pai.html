@@ -17,7 +17,7 @@
 <main class="workspace seller-analysis">
   <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Análise FOB por Vendedor Pai</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema"><span data-theme-icon aria-hidden="true">☾</span></button></div>
   <form id="seller-filters" class="filter-card">
-    <div class="filter-title"><strong>Período e regionais</strong><span>Comparação por produto com o PM FOB global das quatro unidades.</span></div>
+    <div class="filter-heading"><div class="filter-title"><strong>Período e regionais</strong><span>Comparação por produto com o PM FOB global das quatro unidades.</span></div><button type="button" class="filter-reset-button" id="seller-clear-filters">Limpar filtros</button></div>
     <div class="seller-fields">
       <label class="field">Data inicial<input id="seller-start" type="date" value="2026-10-01" required min="2026-01-01"></label>
       <label class="field">Data final<input id="seller-end" type="date" value="2026-10-31" required min="2026-01-01"></label>
@@ -26,8 +26,7 @@
       <label class="field">Produto<select id="seller-product"><option value="">Todos do catálogo</option></select></label>
       <button class="primary-button" type="submit">Consultar análise <span aria-hidden="true">→</span></button>
     </div>
-  <div class="filter-actions"><button type="button" class="filter-reset-button" id="seller-clear-filters">Limpar filtros</button></div>
-</form>
+  </form>
   <p id="seller-status" class="status" role="status" aria-live="polite">Preparando consulta autenticada…</p>
   <section class="report-card" aria-labelledby="seller-title">
     <header class="report-header"><h1 id="seller-title">Análise Diferença Fat. FOB por Vendedor PAI × PM FOB Total<span>Regional, composição dos produtos e impacto financeiro</span></h1><div class="period"><span>PERÍODO CONSULTADO</span><strong id="seller-period">—</strong></div></header>

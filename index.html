@@ -23,15 +23,14 @@
   <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p id="page-caption">Faturamento por Vendedor Pai</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema" title="Alternar tema"><span data-theme-icon aria-hidden="true">?</span></button></div>
   <section id="view-faturamento" aria-label="Faturamento por Vendedor Pai">
   <form id="filters-form" class="filter-card" aria-label="Filtros do relatório">
-    <div class="filter-title"><strong>Período e unidades</strong><span>Selecione o intervalo da consulta</span></div>
+    <div class="filter-heading"><div class="filter-title"><strong>Período e unidades</strong><span>Selecione o intervalo da consulta</span></div><button type="button" class="filter-reset-button" id="clear-filters" disabled>Limpar filtros</button></div>
     <div class="filter-fields">
       <label class="field" for="data-inicio">Data inicial<input type="date" id="data-inicio" required></label>
       <label class="field" for="data-fim">Data final<input type="date" id="data-fim" required></label>
       <div class="field"><label id="unidade-label">Unidades</label><div id="filter-unidade" class="checkbox-multiselect" aria-labelledby="unidade-label"></div></div>
       <button class="primary-button" id="apply" type="submit">Consultar relatório <span aria-hidden="true">→</span></button>
     </div>
-  <div class="filter-actions"><button type="button" class="filter-reset-button" id="clear-filters" disabled>Limpar filtros</button></div>
-</form>
+  </form>
   <div id="status" class="status" role="status" aria-live="polite">Preparando a consulta…</div>
   <section class="report-card" aria-labelledby="report-title">
     <header class="report-header"><h1 id="report-title">Qtde NFs, Produtos e Pesos por NF <span>Ave Nova / Real Alimentos / Ribeirão das Neves / Januária</span></h1><div class="period"><span>PERÍODO SELECIONADO</span><strong id="period-label">—</strong></div></header>

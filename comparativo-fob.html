@@ -24,7 +24,7 @@
   <section id="view-comparativo-fob" aria-labelledby="fob-title">
     <header class="fob-intro"><div><span class="eyebrow">PREÇO MÉDIO FOB</span><h1 id="fob-title">Comparativo Família × Canal Venda</h1><p>Compare o preço líquido de despesas e investigue a formação do FOB por item.</p></div><span class="fob-reference-tag">Referência de 01 a 04/10/2026</span></header>
     <form id="fob-filters" class="filter-card" aria-label="Filtros do Comparativo FOB">
-      <div class="filter-title"><strong>Período e composição</strong><span>As médias e despesas são ponderadas pelo peso.</span></div>
+      <div class="filter-heading"><div class="filter-title"><strong>Período e composição</strong><span>As médias e despesas são ponderadas pelo peso.</span></div><button type="button" class="filter-reset-button" id="fob-clear-filters" disabled>Limpar filtros</button></div>
       <div class="fob-filter-fields">
         <label class="field">Data inicial<input id="fob-inicio" type="date" value="2026-10-01" required></label>
         <label class="field">Data final<input id="fob-fim" type="date" value="2026-10-04" required></label>
@@ -34,8 +34,7 @@
         <button class="primary-button" type="submit">Consultar comparativo <span aria-hidden="true">→</span></button>
       </div>
       <p class="fob-filter-note">Consulte o faturamento desde 01/01/2026. Janeiro a setembro usam os cadastros históricos dos fechamentos. Valores com ! ainda têm dados a preencher.</p>
-    <div class="filter-actions"><button type="button" class="filter-reset-button" id="fob-clear-filters" disabled>Limpar filtros</button></div>
-</form>
+    </form>
     <p id="fob-status" class="status" role="status" aria-live="polite">Abra o comparativo para consultar os dados.</p>
     <details class="fob-checks filter-card">
       <summary>Por que existem pendências e valores para conferir?</summary>
