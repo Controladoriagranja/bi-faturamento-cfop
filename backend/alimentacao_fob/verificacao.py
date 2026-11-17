@@ -70,8 +70,8 @@ def inspect_database(conn):
 
 
 def read_state(conn,monthly):
-    current=conn.execute('SELECT * FROM comercial.fob_cadastro ORDER BY registro LIMIT 100001').fetchall()
-    if len(current)>100000:raise ValueError('Prévia excede 100.000 cadastros; nenhuma escrita foi realizada.')
+    current=conn.execute('SELECT * FROM comercial.fob_cadastro ORDER BY registro LIMIT 250001').fetchall()
+    if len(current)>250000:raise ValueError('Prévia excede 250.000 cadastros; nenhuma escrita foi realizada.')
     old_months=[]
     for cost in monthly:
         row=conn.execute('SELECT * FROM comercial.custo_mensal_januaria WHERE competencia=%s',[cost['competencia']]).fetchone()

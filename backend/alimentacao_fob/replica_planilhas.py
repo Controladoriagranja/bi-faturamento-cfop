@@ -181,6 +181,9 @@ def apply_generated_changes(original,generated,specs):
             data[:]=[r for _,r in sorted(rows.items())]
             dimension=root.find(N+'dimension')
             if dimension is not None:dimension.set('ref','A1:'+column(len(headers))+str(last))
+            for validation in root.iter(N+'dataValidation'):
+                ref=validation.get('sqref','');match=re.fullmatch(r'([A-Z]+)6:\1(\d+)',ref)
+                if match:validation.set('sqref',f'{match[1]}6:{match[1]}{max(last,int(match[2]))}')
             for filt in root.findall(N+'autoFilter'):filt.set('ref','A5:'+column(len(headers))+str(last))
             relpath=posixpath.dirname(name)+'/_rels/'+posixpath.basename(name)+'.rels'
             rels={r.get('Id'):r.get('Target') for r in ET.fromstring(before.read(relpath))} if relpath in before.namelist() else {}

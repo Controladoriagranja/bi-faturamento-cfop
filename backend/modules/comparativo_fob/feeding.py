@@ -13,11 +13,21 @@ from fob.calculator import code,item_key,decimal,requires_freight_fill
 from fob.master_data import MasterCatalog,calculate_master_item,calculate_payroll,day,item_identity
 from fob.master_repository import read_current,read_monthly,read_invoices,read_sales,read_status,read_revision,SALES_VIEW
 from fob.freight import invoice_key
+from fob.exclusions import exclusion_reason,january_invoice
 from .aggregation import aggregate,public,order_items
 from .config import CHANNELS,COSTS
 
 
 def enabled():return os.environ.get('FOB_MASTER_ENABLED','0')=='1'
+
+
+def _january_reconciliation_exclusion(item):
+    """Duas NFs ausentes da referência; exclusão autorizada em 17/11/2026.
+
+    Somente FOB/janeiro. Não é uma regra geral de exclusão por falta de frete.
+    A terceira venda adicional 765805/111 permanece incluída, como autorizado.
+    """
+    return january_invoice(item)
 
 
 def _load_month(conn,base_start,base_end,reference):
@@ -27,13 +37,13 @@ def _load_month(conn,base_start,base_end,reference):
     base_end=max([base_end,*[day(r['fim']) for r in payroll_rules]])
     if (base_end-base_start).days>62:raise ValueError('Divida a consulta em até dois meses para a base da folha.')
     all_items=read_sales(conn,base_start,base_end)
-    # Regra adicional autorizada para janeiro/2026, somente no FOB. A tabela
-    # original e o relatório Vendedor Pai continuam preservados.
-    def zero_january(item):
-        return (date(2026,1,1)<=day(item['data'])<date(2026,2,1)
-            and item.get('peso') is not None and decimal(item['peso'])==0)
-    excluded=[i for i in all_items if zero_january(i)]
-    if excluded:all_items=[i for i in all_items if not zero_january(i)]
+    # As mesmas exclusões são usadas na geração de pendências do robô.
+    reasons=[(item,exclusion_reason(item)) for item in all_items]
+    zero_january=sum(reason=='peso_zero_historico' and day(item['data']).month==1 for item,reason in reasons)
+    historical_zeros=sum(reason=='peso_zero_historico' for item,reason in reasons)
+    january_excluded=sum(reason=='conciliacao_janeiro' for item,reason in reasons)
+    historical_excluded=sum(reason=='ausente_fechamento_mensal' for item,reason in reasons)
+    all_items=[item for item,reason in reasons if not reason]
     for item in all_items:item.setdefault('_source',SALES_VIEW)
     monthly=read_monthly(conn)
     invoice_keys=set()
@@ -62,7 +72,9 @@ def _load_month(conn,base_start,base_end,reference):
             provisorio=bool(item.get('_provisional')),divergente=False)
         ref=reference.index.get(item_key(item)) if reference.period[0]<=str(day(item['data']))<=reference.period[1] else None
         calculated.append((row,ref))
-    return dict(rows=calculated,status=status,peso_zero_janeiro=len(excluded))
+    return dict(rows=calculated,status=status,peso_zero_janeiro=zero_january,
+                conciliacao_janeiro=january_excluded,peso_zero_historico=historical_zeros,
+                conciliacao_historica=historical_excluded)
 
 
 def _month(service,conn,start,end,reference,scope):
@@ -137,6 +149,9 @@ def execute_master(service,operation,start,end,choices,search,single,reference,*
             consulta_nf_806684=note_status,
             fonte=SALES_VIEW,comissao_base='mes_completo',cache_calculo=cache_status,
             itens_peso_zero_excluidos_base_janeiro=bundle['peso_zero_janeiro'],
+            itens_excluidos_conciliacao_janeiro=bundle.get('conciliacao_janeiro',0),
+            itens_peso_zero_excluidos_historico=bundle.get('peso_zero_historico',0),
+            itens_excluidos_conciliacao_historica=bundle.get('conciliacao_historica',0),
             observacao='Despesas com vigência explícita. Folha usa base integral da vigência; ausências permanecem pendentes. '
               'Frete final confirmado em Fretes.xlsx pode substituir o original; ausência permanece pendente. '
               'Januária: tipo 1 usa custo mensal; tipo maior que 1 usa zero, como no Excel. '

@@ -67,8 +67,8 @@ def table(content,sheet,headers):
     wb=load_workbook(BytesIO(content),read_only=True,data_only=False,keep_links=False)
     try:
         if sheet not in wb.sheetnames:raise ValueError('Aba ausente: '+sheet)
-        if (wb[sheet].max_row or 0)>50005 or (wb[sheet].max_column or 0)>len(headers):
-            raise ValueError('Área excede o modelo ou 50.000 linhas: '+sheet)
+        if (wb[sheet].max_row or 0)>250005 or (wb[sheet].max_column or 0)>len(headers):
+            raise ValueError('Área excede o modelo ou 250.000 linhas: '+sheet)
         rows=wb[sheet].iter_rows(min_row=5,values_only=True)
         actual=next(rows,())
         if sheet=='Preenchimentos' and tuple(headers)==FREIGHT_HEADERS and tuple(actual[:len(FREIGHT_HEADERS_LEGACY)])==FREIGHT_HEADERS_LEGACY and not any(v is not None for v in actual[len(FREIGHT_HEADERS_LEGACY):]):
@@ -76,7 +76,7 @@ def table(content,sheet,headers):
         if tuple(actual[:len(headers)])!=tuple(headers):raise ValueError('Cabeçalhos divergentes: '+sheet)
         if any(v is not None for v in actual[len(headers):]):raise ValueError('Colunas não reconhecidas: '+sheet)
         for number,values in enumerate(rows,6):
-            if number>50005:raise ValueError('Mais de 50.000 linhas: '+sheet)
+            if number>250005:raise ValueError('Mais de 250.000 linhas: '+sheet)
             if not any(v is not None and v!='' for v in values):continue
             if any(v is not None for v in values[len(headers):]):raise ValueError('Colunas extras: '+sheet)
             row=dict(zip(headers,values));row['_linha']=number

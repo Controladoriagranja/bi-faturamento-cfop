@@ -2,6 +2,7 @@
 from collections import defaultdict
 from datetime import date, timedelta
 from .freight import invoice_key
+from .exclusions import exclusion_reason
 
 FIELDS = ('empresa_contexto,unidade_documento,serie,nota_numero,data,produto,cliente,cfop,'
           'pedido,oc_principal,um,peso,frete,frete_kg,volumes,produto_descricao,redespacho,'
@@ -24,13 +25,13 @@ def read_revision(conn):
 
 
 def read_candidates(conn,start,end,limit=30000):
-    rows=conn.execute('SELECT '+FIELDS+''' FROM comercial.vw_faturamento_cfop_filtrado
+    rows=conn.execute('SELECT '+FIELDS+' FROM '+SALES_VIEW+'''
       WHERE data >= %s AND data < %s AND btrim(unidade_documento)<>'102'
       AND btrim(frete)='1' AND coalesce(frete_kg,0)=0
       ORDER BY data,empresa_contexto,unidade_documento,serie,nota_numero,produto LIMIT %s''',
       [start,end+timedelta(days=1),limit+1]).fetchall()
     if len(rows)>limit:raise ValueError('Limite de pendências excedido; divida o período. Não houve truncamento.')
-    return rows
+    return [row for row in rows if not exclusion_reason(row)]
 
 
 def read_invoices(conn,keys,limit_per_batch=20000):
@@ -59,8 +60,20 @@ def read_invoices(conn,keys,limit_per_batch=20000):
 
 
 def read_current(conn,start,end):
-    return conn.execute('''SELECT * FROM comercial.fob_cadastro
-      WHERE ativo AND inicio<=%s AND fim>=%s ORDER BY registro''',[end,start]).fetchall()
+    # Fretes são anuais por chave de NF. Ler todos os meses do ano em cada
+    # consulta torna o histórico progressivamente mais lento. Mantém somente
+    # os fretes das NFs do período; despesas/folha conservam a vigência original.
+    return conn.execute('''WITH notas_periodo AS (
+      SELECT DISTINCT empresa_contexto,btrim(unidade_documento) unidade,
+        btrim(serie) serie,btrim(nota_numero) nf,extract(year FROM data)::integer::text ano
+      FROM '''+SALES_VIEW+''' WHERE data>=%s AND data<%s
+    ) SELECT r.* FROM comercial.fob_cadastro r
+      WHERE r.ativo AND r.inicio<=%s AND r.fim>=%s AND
+       (r.tipo<>'frete' OR
+        (r.dimensoes->>'empresa_contexto',r.dimensoes->>'unidade_documento',
+         r.dimensoes->>'serie',r.dimensoes->>'nota_numero',r.dimensoes->>'ano_nf')
+          IN (SELECT empresa_contexto,unidade,serie,nf,ano FROM notas_periodo))
+      ORDER BY r.registro''',[start,end+timedelta(days=1),end,start]).fetchall()
 
 
 def read_monthly(conn):
