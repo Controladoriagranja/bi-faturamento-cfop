@@ -22,7 +22,7 @@ def module_files(snapshot):
         files[f'{PACKAGE}/{name}.py']=(ROOT/f'backend/fob/{name}.py').read_bytes()
     files[f'{PACKAGE}/historical_exclusions.json']=(ROOT/'backend/fob/historical_exclusions.json').read_bytes()
     files[f'{PACKAGE}/analise_vendedor_catalogo.json']=(ROOT/'backend/modules/comparativo_fob/analise_vendedor_catalogo.json').read_bytes()
-    for name in ('aggregation','config','service','historical','monthly','feeding','costs_views','seller_analysis'):
+    for name in ('aggregation','config','service','historical','monthly','feeding','costs_views','seller_analysis','projected_result'):
         source=(ROOT/f'backend/modules/comparativo_fob/{name}.py').read_text(encoding='utf-8')
         source=source.replace('from fob.calculator import ','from .calculator import ')
         source=source.replace('from fob.repository import ','from .repository import ')

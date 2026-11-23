@@ -40,6 +40,19 @@ def region(item, sellers):
     return sellers.get(normalized(item['dados_entrada'].get('vendedor')), 'Não classificado')
 
 
+def pending_reason(row):
+    labels={'frete':'Frete','comissao':'Comissão','contrato':'Contrato','pallet':'Pallet','descarga':'Descarga'}
+    reasons=[]
+    for key,value in row.get('componentes',{}).items():
+        if value.get('value') is None:
+            status=value.get('status','pendente')
+            reason='revisar identificação da nota/itens' if status=='revisar_identificacao' else status.replace('_',' ')
+            reasons.append(labels.get(key,key)+': '+reason+' — '+str(value.get('origin') or 'Origem não informada'))
+    if row.get('_resultado') is None and row.get('auditoria_resultado',{}).get('pendencia'):
+        reasons.append(row['auditoria_resultado']['pendencia'])
+    return reasons
+
+
 def summarize(items):
     weight = sum((r['peso'] or ZERO for r in items), ZERO)
     pending = sum(r.get('valor_fob') is None for r in items)
@@ -47,6 +60,15 @@ def summarize(items):
     result = dict(itens=len(items), peso=weight, fob=fob, pendentes=pending,
                   pm_fob=fob/weight if weight > 0 and fob is not None else (ZERO if not weight and not pending else None),
                   resultado=None, percentual_resultado=None)
+    projected=[r.get('_resultado') for r in items]
+    if all(v is not None for v in projected):result['resultado']=sum(projected,ZERO)
+    result['pendentes_resultado']=sum(v is None for v in projected)
+    for field,label in [('_cpv_kg','cpv_kg'),('_despesas_kg','despesas_kg')]:
+        result[label]=(sum(((r['peso'] or ZERO)*r[field] for r in items),ZERO)/weight
+            if weight>0 and all(r.get(field) is not None for r in items) else None)
+    if result['resultado'] is not None and all(r.get('_valor_produto') is not None for r in items):
+        denominator=sum((r['_valor_produto'] for r in items),ZERO)
+        result['percentual_resultado']=result['resultado']/denominator if denominator>0 else None
     for label, fields in [('frete', ('frete_kg',)), ('comissao', ('comissao_kg', 'adicional_comissao_kg')),
                            ('contrato', ('contrato_kg',))]:
         complete = all(all(r.get(field) is not None for field in fields) for r in items)
@@ -82,8 +104,12 @@ def build_analysis(rows, sellers, units=(), selected_regions=(), products=()):
         difference = None
         if summary['fob'] is not None and global_summary['pm_fob'] is not None:
             difference = summary['peso']*(summary['pm_fob']-global_summary['pm_fob']) if summary['peso'] > 0 else ZERO
+        audits={str(r.get('auditoria_resultado',{}).get('competencia')):r.get('auditoria_resultado',{}) for r in items}
         details.append(dict(regional=name, produto=product, descricao=items[0].get('produto_descricao'),
-                            **summary, pm_geral=global_summary['pm_fob'], diferenca=difference))
+                            **summary, pm_geral=global_summary['pm_fob'], diferenca=difference,
+                            motivos_pendencia=sorted({reason for r in items for reason in pending_reason(r)}),
+                            auditoria_resultado=list(audits.values()),origem_cpv='; '.join(
+                                str(a.get('competencia',''))+' / '+str(a.get('cpv_origem') or 'Pendente') for a in audits.values())))
     def aggregate(items, product_rows):
         result = summarize(items)
         result['diferenca'] = (sum((p['diferenca'] for p in product_rows), ZERO)
@@ -100,6 +126,11 @@ def build_analysis(rows, sellers, units=(), selected_regions=(), products=()):
         if selected_regions and name not in selected_regions: continue
         items = [r for r in main_rows if region(r, sellers) == name]
         result = aggregate(items, [p for p in details if p['regional'] == name])
+        # K136: numerador do catálogo principal; denominador AJ de toda a regional.
+        regional_base=[r for r in visible if region(r,sellers)==name]
+        if result['resultado'] is not None and all(r.get('_valor_produto') is not None for r in regional_base):
+            gross=sum((r['_valor_produto'] for r in regional_base),ZERO)
+            result['percentual_resultado']=result['resultado']/gross if gross>0 else None
         # O Excel contém zeros fixos nestas células; não presumir ausência de contrato.
         if name in ('Januária', 'CD Ribeirão da Neves'):
             result['contrato_kg'] = None
@@ -123,7 +154,10 @@ def build_analysis(rows, sellers, units=(), selected_regions=(), products=()):
         totals.append(dict(regional=label, financeiro_pendente=True))
     included = main | cms | set(map(normalized, cat['granel'].values()))
     excluded = [r for r in selected if normalized(r['identificacao']['produto']) not in included]
+    pending=[dict(regional=region(r,sellers),**r['identificacao'],peso=r.get('peso'),
+        motivos=pending_reason(r)) for r in selected if r.get('valor_fob') is None]
     return dict(linhas=lines, consolidacoes=totals,
+        pendencias_itens=pending[:500],total_pendencias_itens=len(pending),pendencias_truncadas=len(pending)>500,
         produtos=[p for p in details if not selected_regions or p['regional'] in selected_regions],
         filtros=dict(regionais=regions, produtos=cat['produtos']),
         validacao=dict(peso_base=sum((r['peso'] or ZERO for r in selected), ZERO),
@@ -158,7 +192,17 @@ def execute(service, request):
             bundle, cache = _month(service, conn, start.replace(day=1),
                 end.replace(day=monthrange(end.year,end.month)[1]), reference, scope)
             sellers = seller_map(conn.execute('SELECT vendedor,vendedor_pai FROM comercial.vendedor_grupo').fetchall())
-        rows = [r for r, _ in bundle['rows'] if start <= date.fromisoformat(str(r['identificacao']['data'])) <= end
+            from .projected_result import read_months,enrich
+            closures=read_months(conn,start,end)
+            from fob.master_repository import SALES_VIEW
+            source=conn.execute('SELECT id,valor_produto FROM '+SALES_VIEW+' WHERE data>=%s AND data<=%s',
+                [start.replace(day=1),end.replace(day=monthrange(end.year,end.month)[1])]).fetchall()
+            gross={r['id']:r['valor_produto'] for r in source}
+            if len(gross)!=len(source):raise ValueError('Identificadores de item duplicados na origem.')
+        with localcontext() as ctx:
+            ctx.prec=38
+            enriched,financial_status=enrich([r for r,_ in bundle['rows']],closures,gross)
+        rows = [r for r in enriched if start <= date.fromisoformat(str(r['identificacao']['data'])) <= end
                 and normalized(r['identificacao']['unidade_documento']) in ('10','111','180','102')]
         with localcontext() as ctx:
             ctx.prec = 38
@@ -166,8 +210,9 @@ def execute(service, request):
         result['contexto'] = dict(data_inicio=start, data_fim=end, fonte='comercial.vw_faturamento_vendedor_pai_itens',
             modo='planilhas_mestre', cache_calculo=cache, benchmark='Mesmo produto nas quatro unidades e todas as regionais no período; filtros de exibição não alteram esse PM.',
             percentuais='Peso e FOB divididos pelo total do catálogo principal nas unidades/produtos selecionados, antes do filtro regional.',
-            pendencias=['CPV industrial por produto/competência', 'Despesas administrativas e critérios de rateio',
-                       'Impostos e abrangência dos consolidados', 'Regra da coluna contrato para RN e Januária'],
+            fechamento=financial_status,impostos_status='PENDENTE_CONFERENCIA_RESPONSAVEIS',
+            observacao_resultado='Custos da própria competência; rateio pela base integral do mês. % Resultado regional usa valor_produto de toda a regional, conforme K136.',
+            pendencias=['Impostos: alíquotas e abrangência aguardam responsáveis', 'Regra da coluna contrato para RN e Januária'],
             catalogo_origem=catalogue()['origem'],catalogo_sha256=catalogue()['sha256'])
         return public(result)
     except ValueError as error: raise HTTPException(422, str(error)) from None

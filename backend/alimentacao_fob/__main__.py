@@ -19,6 +19,12 @@ def main(argv=None):
     parser.add_argument('--config',type=Path,help='Configuração privada; padrão alimentacao_fob/.env.local.')
     parser.add_argument('--pasta',type=Path)
     actions=parser.add_mutually_exclusive_group()
+    actions.add_argument('--preparar-analise-comercial',metavar='AAAA-MM',help='Copia a análise comercial e gera prévia mensal; não grava no banco.')
+    actions.add_argument('--importar-fechamento',metavar='AAAA-MM',help='Importa despesas mensais e CPV com histórico; não importa impostos.')
+    parser.add_argument('--cpv-arquivo',type=Path,help='XLSX com CPV-Frango da mesma competência.')
+    parser.add_argument('--arquivo-comercial',type=Path,help='Cópia já preparada da análise comercial; sem isso copia a origem oficial primeiro.')
+    parser.add_argument('--origem-analise-comercial',type=Path,help='Arquivo de origem, exclusivamente leitura.')
+    parser.add_argument('--destino-analise-comercial',type=Path,help='Pasta da cópia e das prévias; nunca a pasta de origem.')
     actions.add_argument('--sincronizar',action='store_true',help='Prévia, backup, alterações transacionais e baixa das pendências preenchidas.')
     actions.add_argument('--atualizar-recentes',action='store_true',help='Somente pendências da janela recente; não importa custos.')
     actions.add_argument('--atualizar-pendencias',action='store_true',help='Consulta PostgreSQL e atualiza só a aba automática.')
@@ -32,6 +38,14 @@ def main(argv=None):
     parser.add_argument('--inicio',type=date.fromisoformat)
     parser.add_argument('--fim',type=date.fromisoformat)
     args=parser.parse_args(argv)
+    if (args.origem_analise_comercial or args.destino_analise_comercial) and not args.preparar_analise_comercial:
+        parser.error('Origem/destino da análise comercial só podem ser usados com --preparar-analise-comercial.')
+    if args.preparar_analise_comercial and (args.inicio or args.fim or args.pasta):
+        parser.error('Análise comercial usa competência AAAA-MM e --destino-analise-comercial, sem --inicio/--fim/--pasta.')
+    if args.importar_fechamento and (not args.cpv_arquivo or args.inicio or args.fim or args.pasta):
+        parser.error('Fechamento exige --cpv-arquivo e competência AAAA-MM, sem --inicio/--fim/--pasta.')
+    if (args.cpv_arquivo or args.arquivo_comercial) and not args.importar_fechamento:
+        parser.error('Arquivos de fechamento só podem ser usados com --importar-fechamento.')
     try:load_config(args.config)
     except ValueError as error:
         print(json.dumps(dict(ok=False,erro=str(error)),ensure_ascii=False));return 1
@@ -42,6 +56,23 @@ def main(argv=None):
         parser.error('Recuperação exige --inicio/--fim válidos; as consultas são mensais.')
     contents={};files={};result={}
     try:
+        if args.importar_fechamento:
+            from .analise_comercial import prepare,DESTINATION
+            from .fechamento import build,import_month
+            commercial=args.arquivo_comercial
+            if commercial is None:
+                copied=prepare(args.importar_fechamento,copy=True)
+                commercial=Path(copied['destino'])
+            content=build(args.importar_fechamento,commercial,args.cpv_arquivo)
+            root=Path(os.environ.get('FOB_ESTADO_DIR') or Path(os.environ.get('LOCALAPPDATA',Path.home()))/'GranjaBrasilia/FOB')/'fechamento'
+            with connect('FOB_PG_WRITE_DSN',True) as conn:
+                result=import_month(conn,content,os.environ.get('FOB_ROBOT_ACTOR_ID',''),root)
+            print(json.dumps(dict(ok=True,modo='fechamento_mensal',impostos='PENDENTE_CONFERENCIA_RESPONSAVEIS',**result),ensure_ascii=False));return 0
+        if args.preparar_analise_comercial:
+            from .analise_comercial import prepare,SOURCE,DESTINATION
+            result=prepare(args.preparar_analise_comercial,args.origem_analise_comercial or SOURCE,
+                args.destino_analise_comercial or DESTINATION,copy=True)
+            print(json.dumps(dict(ok=True,modo='copia_e_previa_sem_escrita_postgresql',**result),ensure_ascii=False));return 0
         if args.sincronizar or args.atualizar_recentes:
             from .rotina import synchronize,recent,log_result
             if args.inicio or args.fim:raise ValueError('Use --atualizar-pendencias para um intervalo explícito.')
