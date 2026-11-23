@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark">
+  <script>try{const t=localStorage.getItem('bi-zootecnico-theme');document.documentElement.dataset.theme=(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))?'dark':'light';}catch(_){}</script>
+  <title>Comparativo Mix · Granja Brasília</title>
+  <link rel="icon" href="assets/img/favicon-granja.png"><link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/navigation.css"><link rel="stylesheet" href="assets/css/mix.css">
+  <script defer src="assets/js/theme.js"></script><script defer src="assets/js/config.js"></script><script defer src="assets/js/api.js"></script><script defer src="assets/js/csv-export.js"></script><script defer src="assets/js/report-state.js"></script><script defer src="assets/js/navigation.js"></script><script defer src="assets/js/mix.js"></script>
+</head>
+<body data-page="comparativo-mix">
+<main class="workspace">
+  <div class="brand-row"><img src="assets/img/logo-granja-brasilia-clara.png" alt="Granja Brasília"><div><span class="eyebrow">COMERCIAL</span><p>Comparativo Mix</p></div><button type="button" class="theme-toggle" data-theme-toggle aria-label="Alternar tema"><span data-theme-icon aria-hidden="true">◐</span></button></div>
+  <form id="mix-filters" class="filter-card" aria-label="Filtros do Comparativo Mix">
+    <div class="filter-heading"><div class="filter-title"><strong>Período e cenário</strong><span>Preços do FOB operacional e parâmetros industriais da competência.</span></div><button type="button" id="mix-clear" class="filter-reset-button">Limpar filtros</button></div>
+    <div class="mix-fields">
+      <label class="field">Data inicial<input id="mix-start" type="date" required value="2026-10-01"></label>
+      <label class="field">Data final<input id="mix-end" type="date" required value="2026-10-31"></label>
+      <label class="field">Unidade<select id="mix-unit"><option value="">Todas do modelo (10, 111 e 180)</option><option value="10">Ave Nova (10)</option><option value="111">Real Alimentos (111)</option><option value="180">CD Ribeirão das Neves (180)</option></select></label>
+      <label class="field">Comparação<select id="mix-comparison"><option value="">Todas as comparações</option></select></label>
+      <label class="field">Aves no cenário (opcional)<input id="mix-birds" type="number" min="1" max="100000000" step="1" placeholder="Cadastro mensal"></label>
+      <label class="field">Peso vivo médio, kg (opcional)<input id="mix-weight" type="number" min="0.001" max="100" step="any" placeholder="Cadastro mensal"></label>
+      <button class="primary-button" type="submit">Consultar comparativo <span aria-hidden="true">→</span></button>
+    </div>
+    <p class="mix-note">Consulte um único mês. Alterar aves ou peso simula o cenário, sem gravar no banco. Januária não participa do universo de preços desta tabela do Excel.</p>
+  </form>
+  <p id="mix-status" class="status" role="status" aria-live="polite">Aguardando consulta autenticada.</p>
+  <section class="report-card" aria-labelledby="mix-title">
+    <header class="report-header"><h1 id="mix-title">Comparativo Mix<span>Alternativas de produção e geração de caixa</span></h1><div class="period"><span>PERÍODO CONSULTADO</span><strong id="mix-period">—</strong></div></header>
+    <div class="mix-tools"><p>Clique no resultado ou no ! para conferir fórmula, origem e pendências.</p><button id="mix-export" type="button" disabled>Exportar CSV</button></div>
+    <div id="mix-warning" class="mix-warning" hidden></div>
+    <div class="table-scroll" tabindex="0" aria-label="Comparativo Mix; role horizontalmente em telas pequenas">
+      <table id="mix-table"><thead><tr><th scope="col">Família</th><th scope="col">Geração de caixa</th><th scope="col">Família</th><th scope="col">Geração de caixa</th></tr></thead><tbody><tr><td colspan="4" class="empty">Consulte o período para carregar as comparações.</td></tr></tbody></table>
+    </div>
+    <footer class="report-footer"><span id="mix-source">PostgreSQL · FOB operacional</span><span id="mix-count">—</span></footer>
+  </section>
+  <p class="mix-note">Geração de caixa representa a variação percentual entre alternativas do método de referência. Não é valor em reais nem margem contábil. Pendência não equivale a zero; os parâmetros da prévia não são aplicados pelo Portal.</p>
+</main>
+<dialog id="mix-detail" aria-labelledby="mix-detail-title"><header><h2 id="mix-detail-title">Conferir comparação</h2><button type="button" id="mix-close" aria-label="Fechar detalhamento">Fechar ×</button></header><div id="mix-detail-body"></div></dialog>
+</body></html>

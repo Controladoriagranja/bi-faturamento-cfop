@@ -7,6 +7,7 @@ const APP_CONFIG = {
   fretesManuais: "/api/comercial-html/fretes-manuais",
   custosJanuaria: "/api/comercial-html/fretes-manuais/custos-januaria",
   custosFOB: "/api/comercial/comparativo-fob/custos",
+  comparativoMix: "/api/comercial/comparativo-fob/mix",
   // Preenchimentos financeiros são feitos nas planilhas-mestre.
   legacyFreightEditor: false
 };

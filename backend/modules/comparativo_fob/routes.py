@@ -15,6 +15,10 @@ def create_router(service):
     def analise_vendedor(request:Request):
         from .seller_analysis import execute
         return execute(service,request)
+    @router.get('/mix')
+    def mix(request:Request):
+        from .mix import execute
+        return execute(service,request)
     return router
 
 
