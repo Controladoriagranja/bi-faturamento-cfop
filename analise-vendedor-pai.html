@@ -7,11 +7,11 @@
   <title>Análise FOB por Vendedor Pai · Granja Brasília</title>
   <link rel="icon" href="assets/img/favicon-granja.png">
   <link rel="stylesheet" href="assets/css/app.css"><link rel="stylesheet" href="assets/css/navigation.css">
-  <link rel="stylesheet" href="assets/css/seller-analysis.css?v=20261123-1">
+  <link rel="stylesheet" href="assets/css/seller-analysis.css?v=20261123-2">
   <script defer src="assets/js/theme.js"></script><script defer src="assets/js/config.js"></script>
   <script defer src="assets/js/api.js"></script><script defer src="assets/js/csv-export.js"></script>
   <script defer src="assets/js/report-state.js"></script><script defer src="assets/js/navigation.js"></script>
-  <script defer src="assets/js/seller-analysis.js?v=20261123-1"></script>
+  <script defer src="assets/js/seller-analysis.js?v=20261123-2"></script>
 </head>
 <body data-page="analise-vendedor-pai">
 <main class="workspace seller-analysis">
@@ -47,5 +47,5 @@
     <p id="seller-scope">Consulte para verificar a cobertura do catálogo.</p>
   </details>
 </main>
-<dialog id="seller-dialog" aria-labelledby="seller-detail-title"><header><div><h2 id="seller-detail-title">Produtos da regional</h2><p>Valores calculados no backend. PM global permanece nas quatro unidades.</p></div><button id="seller-close" type="button" aria-label="Fechar detalhamento">Fechar ×</button></header><div class="seller-tools"><span id="seller-detail-count"></span><button id="seller-detail-export" type="button">Exportar produtos CSV</button></div><div class="seller-scroll" tabindex="0"><table id="seller-products"><thead></thead><tbody></tbody></table></div></dialog>
+<dialog id="seller-dialog" aria-labelledby="seller-detail-title"><header><div><h2 id="seller-detail-title">Produtos da regional</h2><p>Valores calculados no backend. PM global permanece nas quatro unidades.</p></div><button id="seller-close" type="button" aria-label="Fechar detalhamento">Fechar ×</button></header><div id="seller-pending-help" class="seller-pending-help" hidden><strong>Onde conferir e como resolver</strong><p>Arquivo operacional: <span id="seller-freight-path"></span></p><p><strong>Revisar identificação:</strong> o frete já foi informado, mas o vínculo com a nota atual não foi validado. Na aba Preenchimentos, confira a linha indicada, empresa, unidade, série, NF, ano e valor com os itens e pesos da aba Pendências e do faturamento. Peça ao responsável pela conciliação para validar e atualizar o vínculo pelo robô. Preserve o valor confirmado; não altere assinaturas nem force frete zero.</p><p><strong>Frete sem preenchimento:</strong> localize a nota e seus itens na aba Pendências e registre o valor confirmado na aba Preenchimentos, respeitando o escopo e a modalidade da linha. Depois salve, feche e execute a importação do robô. Salvar o Excel sozinho não atualiza o Portal.</p><p>Frete em revisão também deixa o FOB em aberto e impede concluir o rateio mensal. Isso pode manter outras regionais sem resultado projetado, mesmo com CPV e despesas já cadastrados. A causa exata da divergência de cada nota precisa ser conferida.</p></div><div class="seller-tools"><span id="seller-detail-count"></span><button id="seller-detail-export" type="button">Exportar produtos CSV</button></div><div class="seller-scroll" tabindex="0"><table id="seller-products"><thead></thead><tbody></tbody></table></div></dialog>
 </body></html>
